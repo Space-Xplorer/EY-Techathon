@@ -1,0 +1,50 @@
+[
+  {
+    "rfp_id": "RFP-001",
+    "product_name": "Main Circulation Pump",
+    "sku": "FC-FM-1000",
+    "unit_price": 1300.0,
+    "quantity": 4,
+    "total_price": 5200.0
+  },
+  {
+    "rfp_id": "RFP-001",
+    "product_name": "Secondary Pump",
+    "sku": "AC-PUMP-800",
+    "unit_price": 900.0,
+    "quantity": 2,
+    "total_price": 1800.0
+  },
+  {
+    "rfp_id": "RFP-002",
+    "product_name": "Boiler Feed Pump",
+    "sku": "AC-PUMP-1000",
+    "unit_price": 1200.0,
+    "quantity": 3,
+    "total_price": 3600.0
+  },
+  {
+    "rfp_id": "RFP-003",
+    "product_name": "Pressure Sensor A",
+    "sku": "SS-P1",
+    "unit_price": 150.0,
+    "quantity": 10,
+    "total_price": 1500.0
+  },
+  {
+    "rfp_id": "RFP-004",
+    "product_name": "Irrigation Pump",
+    "sku": "AC-PUMP-800",
+    "unit_price": 900.0,
+    "quantity": 6,
+    "total_price": 5400.0
+  },
+  {
+    "rfp_id": "RFP-005",
+    "product_name": "High-Precision Pressure Sensor",
+    "sku": "GW-PP",
+    "unit_price": 180.0,
+    "quantity": 5,
+    "total_price": 900.0
+  }
+]

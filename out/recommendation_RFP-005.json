@@ -1,0 +1,122 @@
+{
+  "rfp_id": "RFP-005",
+  "rfp_info": {
+    "rfp_name": "Research Lab Sensors",
+    "client_name": "UniLab",
+    "due_date": "2026-02-28"
+  },
+  "product_recommendations": [
+    {
+      "rfp_product": "High-Precision Pressure Sensor",
+      "recommendations": [
+        {
+          "oem_name": "GaugeWorks",
+          "product_name": "PressurePro",
+          "sku": "GW-PP",
+          "spec_match_percentage": 100.0,
+          "comparison": {
+            "range_bar": {
+              "rfp_value": "0-16",
+              "oem_value": "0-16",
+              "match": true
+            },
+            "accuracy_percent": {
+              "rfp_value": "0.2",
+              "oem_value": "0.2",
+              "match": true
+            }
+          },
+          "unit_price": 180.0
+        },
+        {
+          "oem_name": "SafeSensors",
+          "product_name": "PressureSense P1",
+          "sku": "SS-P1",
+          "spec_match_percentage": 0.0,
+          "comparison": {
+            "range_bar": {
+              "rfp_value": "0-16",
+              "oem_value": "0-10",
+              "match": false
+            },
+            "accuracy_percent": {
+              "rfp_value": "0.2",
+              "oem_value": "0.5",
+              "match": false
+            }
+          },
+          "unit_price": 150.0
+        }
+      ],
+      "comparison_table": {
+        "rfp_product": "High-Precision Pressure Sensor",
+        "rfp_specs": {
+          "range_bar": "0-16",
+          "accuracy_percent": "0.2"
+        },
+        "recommendations": [
+          {
+            "oem_name": "GaugeWorks",
+            "product_name": "PressurePro",
+            "sku": "GW-PP",
+            "spec_match_percentage": 100.0,
+            "comparison": {
+              "range_bar": {
+                "rfp_value": "0-16",
+                "oem_value": "0-16",
+                "match": true
+              },
+              "accuracy_percent": {
+                "rfp_value": "0.2",
+                "oem_value": "0.2",
+                "match": true
+              }
+            },
+            "unit_price": 180.0
+          },
+          {
+            "oem_name": "SafeSensors",
+            "product_name": "PressureSense P1",
+            "sku": "SS-P1",
+            "spec_match_percentage": 0.0,
+            "comparison": {
+              "range_bar": {
+                "rfp_value": "0-16",
+                "oem_value": "0-10",
+                "match": false
+              },
+              "accuracy_percent": {
+                "rfp_value": "0.2",
+                "oem_value": "0.5",
+                "match": false
+              }
+            },
+            "unit_price": 150.0
+          }
+        ]
+      },
+      "selected": {
+        "product_name": "High-Precision Pressure Sensor",
+        "quantity": 5,
+        "selected_oem": "GaugeWorks",
+        "selected_product_name": "PressurePro",
+        "sku": "GW-PP",
+        "spec_match_percentage": 100.0,
+        "unit_price": 180.0,
+        "total_price": 900.0
+      }
+    }
+  ],
+  "final_selected": [
+    {
+      "product_name": "High-Precision Pressure Sensor",
+      "quantity": 5,
+      "selected_oem": "GaugeWorks",
+      "selected_product_name": "PressurePro",
+      "sku": "GW-PP",
+      "spec_match_percentage": 100.0,
+      "unit_price": 180.0,
+      "total_price": 900.0
+    }
+  ]
+}

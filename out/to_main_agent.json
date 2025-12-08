@@ -1,0 +1,112 @@
+[
+  {
+    "rfp_id": "RFP-001",
+    "rfp_info": {
+      "rfp_name": "Water Plant Pumps",
+      "client_name": "CityWater",
+      "due_date": "2026-01-20"
+    },
+    "final_selected": [
+      {
+        "product_name": "Main Circulation Pump",
+        "quantity": 4,
+        "selected_oem": "FlowCorp",
+        "selected_product_name": "FlowMaster 1000",
+        "sku": "FC-FM-1000",
+        "spec_match_percentage": 100.0,
+        "unit_price": 1300.0,
+        "total_price": 5200.0
+      },
+      {
+        "product_name": "Secondary Pump",
+        "quantity": 2,
+        "selected_oem": "Acme Pumps",
+        "selected_product_name": "AC Pump 800",
+        "sku": "AC-PUMP-800",
+        "spec_match_percentage": 100.0,
+        "unit_price": 900.0,
+        "total_price": 1800.0
+      }
+    ]
+  },
+  {
+    "rfp_id": "RFP-002",
+    "rfp_info": {
+      "rfp_name": "Boiler Feed",
+      "client_name": "HeatCo",
+      "due_date": "2026-02-10"
+    },
+    "final_selected": [
+      {
+        "product_name": "Boiler Feed Pump",
+        "quantity": 3,
+        "selected_oem": "Acme Pumps",
+        "selected_product_name": "AC Pump 1000",
+        "sku": "AC-PUMP-1000",
+        "spec_match_percentage": 100.0,
+        "unit_price": 1200.0,
+        "total_price": 3600.0
+      }
+    ]
+  },
+  {
+    "rfp_id": "RFP-003",
+    "rfp_info": {
+      "rfp_name": "Factory Sensors",
+      "client_name": "ManuFact",
+      "due_date": "2026-01-05"
+    },
+    "final_selected": [
+      {
+        "product_name": "Pressure Sensor A",
+        "quantity": 10,
+        "selected_oem": "SafeSensors",
+        "selected_product_name": "PressureSense P1",
+        "sku": "SS-P1",
+        "spec_match_percentage": 100.0,
+        "unit_price": 150.0,
+        "total_price": 1500.0
+      }
+    ]
+  },
+  {
+    "rfp_id": "RFP-004",
+    "rfp_info": {
+      "rfp_name": "Irrigation Upgrade",
+      "client_name": "FarmCo",
+      "due_date": "2026-03-12"
+    },
+    "final_selected": [
+      {
+        "product_name": "Irrigation Pump",
+        "quantity": 6,
+        "selected_oem": "Acme Pumps",
+        "selected_product_name": "AC Pump 800",
+        "sku": "AC-PUMP-800",
+        "spec_match_percentage": 100.0,
+        "unit_price": 900.0,
+        "total_price": 5400.0
+      }
+    ]
+  },
+  {
+    "rfp_id": "RFP-005",
+    "rfp_info": {
+      "rfp_name": "Research Lab Sensors",
+      "client_name": "UniLab",
+      "due_date": "2026-02-28"
+    },
+    "final_selected": [
+      {
+        "product_name": "High-Precision Pressure Sensor",
+        "quantity": 5,
+        "selected_oem": "GaugeWorks",
+        "selected_product_name": "PressurePro",
+        "sku": "GW-PP",
+        "spec_match_percentage": 100.0,
+        "unit_price": 180.0,
+        "total_price": 900.0
+      }
+    ]
+  }
+]

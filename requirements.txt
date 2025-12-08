@@ -1,0 +1,1 @@
+# Minimal requirements (uses standard library only). Add dependencies here if needed.

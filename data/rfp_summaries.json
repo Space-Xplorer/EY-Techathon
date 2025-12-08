@@ -1,0 +1,110 @@
+[
+  {
+    "rfp_id": "RFP-001",
+    "rfp_info": {
+      "rfp_name": "Water Plant Pumps",
+      "client_name": "CityWater",
+      "due_date": "2026-01-20"
+    },
+    "products": [
+      {
+        "product_name": "Main Circulation Pump",
+        "category": "Pump",
+        "quantity": 4,
+        "specifications": {
+          "flow_rate_lpm": "1000",
+          "pressure_bar": "9",
+          "power_kw": "15"
+        }
+      },
+      {
+        "product_name": "Secondary Pump",
+        "category": "Pump",
+        "quantity": 2,
+        "specifications": {
+          "flow_rate_lpm": "800",
+          "pressure_bar": "8",
+          "power_kw": "11"
+        }
+      }
+    ]
+  },
+  {
+    "rfp_id": "RFP-002",
+    "rfp_info": {
+      "rfp_name": "Boiler Feed",
+      "client_name": "HeatCo",
+      "due_date": "2026-02-10"
+    },
+    "products": [
+      {
+        "product_name": "Boiler Feed Pump",
+        "category": "Pump",
+        "quantity": 3,
+        "specifications": {
+          "flow_rate_lpm": "1000",
+          "pressure_bar": "10",
+          "power_kw": "16"
+        }
+      }
+    ]
+  },
+  {
+    "rfp_id": "RFP-003",
+    "rfp_info": {
+      "rfp_name": "Factory Sensors",
+      "client_name": "ManuFact",
+      "due_date": "2026-01-05"
+    },
+    "products": [
+      {
+        "product_name": "Pressure Sensor A",
+        "category": "Sensor",
+        "quantity": 10,
+        "specifications": {
+          "range_bar": "0-10",
+          "accuracy_percent": "0.5"
+        }
+      }
+    ]
+  },
+  {
+    "rfp_id": "RFP-004",
+    "rfp_info": {
+      "rfp_name": "Irrigation Upgrade",
+      "client_name": "FarmCo",
+      "due_date": "2026-03-12"
+    },
+    "products": [
+      {
+        "product_name": "Irrigation Pump",
+        "category": "Pump",
+        "quantity": 6,
+        "specifications": {
+          "flow_rate_lpm": "800",
+          "pressure_bar": "8",
+          "power_kw": "12"
+        }
+      }
+    ]
+  },
+  {
+    "rfp_id": "RFP-005",
+    "rfp_info": {
+      "rfp_name": "Research Lab Sensors",
+      "client_name": "UniLab",
+      "due_date": "2026-02-28"
+    },
+    "products": [
+      {
+        "product_name": "High-Precision Pressure Sensor",
+        "category": "Sensor",
+        "quantity": 5,
+        "specifications": {
+          "range_bar": "0-16",
+          "accuracy_percent": "0.2"
+        }
+      }
+    ]
+  }
+]

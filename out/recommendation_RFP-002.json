@@ -1,0 +1,191 @@
+{
+  "rfp_id": "RFP-002",
+  "rfp_info": {
+    "rfp_name": "Boiler Feed",
+    "client_name": "HeatCo",
+    "due_date": "2026-02-10"
+  },
+  "product_recommendations": [
+    {
+      "rfp_product": "Boiler Feed Pump",
+      "recommendations": [
+        {
+          "oem_name": "Acme Pumps",
+          "product_name": "AC Pump 1000",
+          "sku": "AC-PUMP-1000",
+          "spec_match_percentage": 100.0,
+          "comparison": {
+            "flow_rate_lpm": {
+              "rfp_value": "1000",
+              "oem_value": "1000",
+              "match": true
+            },
+            "pressure_bar": {
+              "rfp_value": "10",
+              "oem_value": "10",
+              "match": true
+            },
+            "power_kw": {
+              "rfp_value": "16",
+              "oem_value": "15",
+              "match": true
+            }
+          },
+          "unit_price": 1200.0
+        },
+        {
+          "oem_name": "FlowCorp",
+          "product_name": "FlowMaster 1000",
+          "sku": "FC-FM-1000",
+          "spec_match_percentage": 66.67,
+          "comparison": {
+            "flow_rate_lpm": {
+              "rfp_value": "1000",
+              "oem_value": "1000",
+              "match": true
+            },
+            "pressure_bar": {
+              "rfp_value": "10",
+              "oem_value": "9.5",
+              "match": true
+            },
+            "power_kw": {
+              "rfp_value": "16",
+              "oem_value": "14",
+              "match": false
+            }
+          },
+          "unit_price": 1300.0
+        },
+        {
+          "oem_name": "Acme Pumps",
+          "product_name": "AC Pump 800",
+          "sku": "AC-PUMP-800",
+          "spec_match_percentage": 0.0,
+          "comparison": {
+            "flow_rate_lpm": {
+              "rfp_value": "1000",
+              "oem_value": "800",
+              "match": false
+            },
+            "pressure_bar": {
+              "rfp_value": "10",
+              "oem_value": "8",
+              "match": false
+            },
+            "power_kw": {
+              "rfp_value": "16",
+              "oem_value": "11",
+              "match": false
+            }
+          },
+          "unit_price": 900.0
+        }
+      ],
+      "comparison_table": {
+        "rfp_product": "Boiler Feed Pump",
+        "rfp_specs": {
+          "flow_rate_lpm": "1000",
+          "pressure_bar": "10",
+          "power_kw": "16"
+        },
+        "recommendations": [
+          {
+            "oem_name": "Acme Pumps",
+            "product_name": "AC Pump 1000",
+            "sku": "AC-PUMP-1000",
+            "spec_match_percentage": 100.0,
+            "comparison": {
+              "flow_rate_lpm": {
+                "rfp_value": "1000",
+                "oem_value": "1000",
+                "match": true
+              },
+              "pressure_bar": {
+                "rfp_value": "10",
+                "oem_value": "10",
+                "match": true
+              },
+              "power_kw": {
+                "rfp_value": "16",
+                "oem_value": "15",
+                "match": true
+              }
+            },
+            "unit_price": 1200.0
+          },
+          {
+            "oem_name": "FlowCorp",
+            "product_name": "FlowMaster 1000",
+            "sku": "FC-FM-1000",
+            "spec_match_percentage": 66.67,
+            "comparison": {
+              "flow_rate_lpm": {
+                "rfp_value": "1000",
+                "oem_value": "1000",
+                "match": true
+              },
+              "pressure_bar": {
+                "rfp_value": "10",
+                "oem_value": "9.5",
+                "match": true
+              },
+              "power_kw": {
+                "rfp_value": "16",
+                "oem_value": "14",
+                "match": false
+              }
+            },
+            "unit_price": 1300.0
+          },
+          {
+            "oem_name": "Acme Pumps",
+            "product_name": "AC Pump 800",
+            "sku": "AC-PUMP-800",
+            "spec_match_percentage": 0.0,
+            "comparison": {
+              "flow_rate_lpm": {
+                "rfp_value": "1000",
+                "oem_value": "800",
+                "match": false
+              },
+              "pressure_bar": {
+                "rfp_value": "10",
+                "oem_value": "8",
+                "match": false
+              },
+              "power_kw": {
+                "rfp_value": "16",
+                "oem_value": "11",
+                "match": false
+              }
+            },
+            "unit_price": 900.0
+          }
+        ]
+      },
+      "selected": {
+        "product_name": "Boiler Feed Pump",
+        "quantity": 3,
+        "selected_oem": "Acme Pumps",
+        "selected_product_name": "AC Pump 1000",
+        "sku": "AC-PUMP-1000",
+        "spec_match_percentage": 100.0,
+        "unit_price": 1200.0,
+        "total_price": 3600.0
+      }
+    }
+  ],
+  "final_selected": [
+    {
+      "product_name": "Boiler Feed Pump",
+      "quantity": 3,
+      "selected_oem": "Acme Pumps",
+      "selected_product_name": "AC Pump 1000",
+      "sku": "AC-PUMP-1000",
+      "spec_match_percentage": 100.0,
+      "unit_price": 1200.0,
+      "total_price": 3600.0
+    }
+  ]
+}
