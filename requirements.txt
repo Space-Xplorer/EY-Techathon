@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+langgraph
+langchain
+langchain-community
+langchain-openai
+pypdf
+supabase
+python-dotenv
+pydantic
+httpx
+psycopg2-binary
+anthropic
+beautifulsoup4
+reportlab
+PyPDF2
+groq

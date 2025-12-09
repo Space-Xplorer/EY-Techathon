@@ -1,0 +1,29 @@
+from typing import TypedDict, List, Optional, Any
+from langgraph.graph import add_messages
+from langchain_core.messages import BaseMessage
+
+class AgentState(TypedDict):
+    rfp_id: Optional[str]
+    file_path: Optional[str]
+    raw_text: Optional[str]
+    
+    # Sales Agent Output
+    technical_review: Optional[dict] # Serialized TechnicalReviewDoc
+    review_pdf_path: Optional[str]
+    
+    # Legacy / Compatibility fields (optional)
+    technical_specs: Optional[List[dict]] 
+    test_reqs: Optional[List[dict]]       
+    
+    # Technical Agent Output
+    products_matched: Optional[List[dict]] # Mappings of rfp_item -> oem_product
+    
+    # Pricing Agent Output
+    pricing_data: Optional[List[dict]]
+    total_cost: Optional[float]
+    
+    # Logic Checks
+    is_valid_rfp: bool
+    human_approved: bool
+    
+    messages: List[BaseMessage]

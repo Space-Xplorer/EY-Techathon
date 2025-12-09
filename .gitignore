@@ -1,0 +1,8 @@
+__pycache__
+To extract pdfs and store data.txt
+.env
+seed_db.py
+setup_db.py
+
+schema.sql
+*.log
