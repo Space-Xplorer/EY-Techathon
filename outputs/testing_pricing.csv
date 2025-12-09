@@ -1,0 +1,5 @@
+test_requirement,test_name,price_per_test_inr,quantity,total_test_cost_inr
+routine_test_mv,routine_test_mv,8000.0,3,24000.0
+type_test_mv,type_test_mv,35000.0,3,105000.0
+routine_test_lv,routine_test_lv,4000.0,3,12000.0
+acceptance_test,acceptance_test,12000.0,3,36000.0

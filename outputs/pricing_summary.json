@@ -1,0 +1,70 @@
+{
+  "timestamp": "2025-12-09T16:02:57.127443",
+  "agent": "Pricing Agent",
+  "material_costs": [
+    {
+      "rfp_product": "11kV XLPE 3C x 240 sqmm Al Cable",
+      "sku": "MV-AL-XLPE-11KV-3CX240",
+      "product_name": "11kV XLPE 3C x 240 sqmm Al",
+      "quantity": 5000,
+      "unit": "meter",
+      "unit_price_inr": 2350.0,
+      "total_price_inr": 11750000.0
+    },
+    {
+      "rfp_product": "1.1kV PVC 3C x 185 sqmm Al Cable",
+      "sku": "LV-AL-PVC-1.1KV-3CX185",
+      "product_name": "1.1kV PVC 3C x 185 sqmm Al",
+      "quantity": 8000,
+      "unit": "meter",
+      "unit_price_inr": 980.0,
+      "total_price_inr": 7840000.0
+    },
+    {
+      "rfp_product": "Control Cable 7C x 2.5 sqmm",
+      "sku": "CTRL-CU-PVC-1.1KV-7CX2.5",
+      "product_name": "Control 1.1kV 7C x 2.5 sqmm",
+      "quantity": 3000,
+      "unit": "meter",
+      "unit_price_inr": 285.0,
+      "total_price_inr": 855000.0
+    }
+  ],
+  "testing_costs": [
+    {
+      "test_requirement": "routine_test_mv",
+      "test_name": "routine_test_mv",
+      "price_per_test_inr": 8000.0,
+      "quantity": 3,
+      "total_test_cost_inr": 24000.0
+    },
+    {
+      "test_requirement": "type_test_mv",
+      "test_name": "type_test_mv",
+      "price_per_test_inr": 35000.0,
+      "quantity": 3,
+      "total_test_cost_inr": 105000.0
+    },
+    {
+      "test_requirement": "routine_test_lv",
+      "test_name": "routine_test_lv",
+      "price_per_test_inr": 4000.0,
+      "quantity": 3,
+      "total_test_cost_inr": 12000.0
+    },
+    {
+      "test_requirement": "acceptance_test",
+      "test_name": "acceptance_test",
+      "price_per_test_inr": 12000.0,
+      "quantity": 3,
+      "total_test_cost_inr": 36000.0
+    }
+  ],
+  "summary": {
+    "total_material_cost_inr": 20445000.0,
+    "total_testing_cost_inr": 177000.0,
+    "subtotal_inr": 20622000.0,
+    "contingency_10pct_inr": 2062200.0,
+    "grand_total_inr": 22684200.0
+  }
+}

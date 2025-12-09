@@ -1,0 +1,4 @@
+rfp_product,sku,product_name,quantity,unit,unit_price_inr,total_price_inr
+11kV XLPE 3C x 240 sqmm Al Cable,MV-AL-XLPE-11KV-3CX240,11kV XLPE 3C x 240 sqmm Al,5000,meter,2350.0,11750000.0
+1.1kV PVC 3C x 185 sqmm Al Cable,LV-AL-PVC-1.1KV-3CX185,1.1kV PVC 3C x 185 sqmm Al,8000,meter,980.0,7840000.0
+Control Cable 7C x 2.5 sqmm,CTRL-CU-PVC-1.1KV-7CX2.5,Control 1.1kV 7C x 2.5 sqmm,3000,meter,285.0,855000.0
