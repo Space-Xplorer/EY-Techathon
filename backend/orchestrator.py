@@ -20,7 +20,7 @@ load_dotenv()
 
 def load_pdf_node(state: AgentState) -> dict:
     """Loader: Finds PDF or uses provided path."""
-    rfp_dir = "rfps"
+    rfp_dir = os.path.join(os.path.dirname(__file__), "rfps")
     file_path = state.get("file_path")
     
     if not file_path:
@@ -138,7 +138,8 @@ def sales_bid_node(state: AgentState) -> dict:
     
     print(bid_text)
     
-    with open("output/final_bid.txt", "w") as f:
+    output_path = os.path.join(os.path.dirname(__file__), "output", "final_bid.txt")
+    with open(output_path, "w") as f:
         f.write(bid_text)
         
     return {
@@ -175,7 +176,7 @@ def create_graph():
 
 async def main():
     print("Starting Orchestrator (Brain)...")
-    os.makedirs("output", exist_ok=True)
+    os.makedirs(os.path.join(os.path.dirname(__file__), "output"), exist_ok=True)
     
     graph = create_graph()
     config = {"configurable": {"thread_id": "cli_main"}}

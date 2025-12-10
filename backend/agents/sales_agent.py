@@ -48,6 +48,8 @@ class SalesAgent:
             "xlpe", "cable", "wire", "lt cable", "ht cable", 
             "fire resistant", "power cable", "electrical"
         ]
+        # Resolve 'backend' directory (parent of 'agents' where this file resides)
+        self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
     def process_complete_pipeline(self, urls: List[str]) -> TechnicalReviewDoc:
         """Complete Sales Agent pipeline per requirements"""
@@ -277,11 +279,24 @@ Authorized Signatory: Sales Agent
     
     def _download_pdf(self, pdf_url: str, title: str) -> str:
         """Download PDF for analysis"""
-        os.makedirs("data/rfps", exist_ok=True)
-        filename = f"data/rfps/{self._safe_filename(title[:50])}.pdf"
+        rfps_dir = os.path.join(self.base_dir, "data", "rfps")
+        os.makedirs(rfps_dir, exist_ok=True)
+        
+        safe_name = self._safe_filename(title[:50])
+        filename = os.path.join(rfps_dir, f"{safe_name}.pdf")
+        
         if pdf_url.startswith("file://"):
             src = pdf_url.replace("file://", "")
             try:
+                # If src is relative, try to resolve it relative to base_dir if it doesn't exist?
+                # But file:// usually implies absolute or cwd-relative.
+                # Let's check if src exists.
+                if not os.path.exists(src):
+                    # Try relative to backend dir
+                    potential_src = os.path.join(self.base_dir, src)
+                    if os.path.exists(potential_src):
+                        src = potential_src
+                
                 src_abs = os.path.abspath(src)
                 # Always copy local PDFs into `data/rfps` as the canonical store
                 shutil.copy(src_abs, filename)
@@ -298,13 +313,13 @@ Authorized Signatory: Sales Agent
                 # If direct copy failed, try to resolve basename into data/rfps
                 try:
                     base = os.path.basename(src)
-                    candidate = os.path.join('data', 'rfps', base)
+                    candidate = os.path.join(rfps_dir, base)
                     if os.path.exists(candidate):
                         return candidate
                     # fallback: return first pdf in data/rfps if available
-                    files = [f for f in os.listdir(os.path.join('data', 'rfps')) if f.lower().endswith('.pdf')]
+                    files = [f for f in os.listdir(rfps_dir) if f.lower().endswith('.pdf')]
                     if files:
-                        return os.path.join('data', 'rfps', files[0])
+                        return os.path.join(rfps_dir, files[0])
                 except Exception:
                     pass
                 return filename
@@ -316,7 +331,9 @@ Authorized Signatory: Sales Agent
                 f.write(response.content)
             return filename
         except Exception:
-            return "mock_tenders/rfp1.pdf"  # Fallback
+            # Fallback
+            fallback_path = os.path.join(self.base_dir, "mock_tenders", "rfp1.pdf")
+            return fallback_path
     
     def _analyze_pdf(self, pdf_path: str) -> Dict:
         """Requirement 2: Analyze PDF -> Extract specs + traceability"""
@@ -368,8 +385,9 @@ SCOPE SUMMARY:
     
     def _generate_review_pdf(self, review_doc: TechnicalReviewDoc) -> str:
         """Requirement 4: Human review document with traceability"""
-        os.makedirs("output", exist_ok=True)
-        filename = f"output/{self._safe_filename(review_doc.rfp_title[:50])}_review.pdf"
+        output_dir = os.path.join(self.base_dir, "output")
+        os.makedirs(output_dir, exist_ok=True)
+        filename = os.path.join(output_dir, f"{self._safe_filename(review_doc.rfp_title[:50])}_review.pdf")
         
         c = canvas.Canvas(filename, pagesize=letter)
         y = 750
