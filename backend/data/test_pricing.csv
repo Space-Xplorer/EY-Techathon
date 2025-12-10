@@ -1,0 +1,21 @@
+test_name,test_price,currency,category,description
+routine_test_lv,4000.00,INR,Factory Test,Routine test for LV cables at factory
+routine_test_mv,8000.00,INR,Factory Test,Routine test for MV cables at factory
+routine_test_hv,15000.00,INR,Factory Test,Routine test for HV cables at factory
+type_test_lv,20000.00,INR,Third Party Test,Type test for LV cables at accredited lab
+type_test_mv,35000.00,INR,Third Party Test,Type test for MV cables at accredited lab
+type_test_hv,50000.00,INR,Third Party Test,Type test for HV cables at accredited lab
+sample_test,8000.00,INR,Pre-dispatch Test,Sample testing before dispatch
+acceptance_test,12000.00,INR,Site Test,Acceptance testing at project site
+high_voltage_test,18000.00,INR,Specialized Test,High voltage withstand test
+partial_discharge_test,22000.00,INR,Specialized Test,Partial discharge measurement
+thermal_cycling_test,30000.00,INR,Specialized Test,Thermal cycling under load
+bending_test,6000.00,INR,Mechanical Test,Cable bending and flexibility test
+conductor_resistance_test,3500.00,INR,Electrical Test,DC resistance of conductor
+insulation_resistance_test,4500.00,INR,Electrical Test,Insulation resistance measurement
+voltage_test,5500.00,INR,Electrical Test,AC voltage withstand test
+short_circuit_test,25000.00,INR,Performance Test,Short circuit withstand capability
+fire_resistance_test,28000.00,INR,Safety Test,Fire propagation and flame retardance
+smoke_emission_test,15000.00,INR,Safety Test,Smoke density and toxicity test
+water_immersion_test,7000.00,INR,Environmental Test,Water penetration resistance
+uv_resistance_test,12000.00,INR,Environmental Test,UV aging and degradation test

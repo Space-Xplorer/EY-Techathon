@@ -20,7 +20,7 @@ load_dotenv()
 
 def load_pdf_node(state: AgentState) -> dict:
     """Loader: Finds PDF or uses provided path."""
-    rfp_dir = os.path.join(os.path.dirname(__file__), "rfps")
+    rfp_dir = os.path.join(os.path.dirname(__file__), "data", "rfps")
     file_path = state.get("file_path")
     
     if not file_path:
@@ -114,12 +114,35 @@ def pricing_node(state: AgentState) -> dict:
     print("Pricing Agent: Calculating...")
     products = state.get("products_matched", [])
     
-    agent = PricingAgent()
-    total = agent.calculate_quote(products)
+    # Transform product list to expected Pricing Agent format
+    formatted_products = []
+    for p in products:
+        formatted_products.append({
+            "rfp_product": p.get("oem_product_name", "Unknown Product"),
+            "sku": p.get("sku", ""),
+            "quantity": p.get("quantity", 0),
+            "unit": "meter" # Default unit as per plan
+        })
+        
+    # Default test requirements (MVP)
+    test_reqs = ["routine_test_mv", "acceptance_test"]
+
+    # Initialize Agent with CSV paths
+    base_dir = os.path.dirname(__file__)
+    data_dir = os.path.join(base_dir, "data")
+    
+    agent = PricingAgent(
+        product_pricing_db=os.path.join(data_dir, "product_pricing.csv"),
+        test_pricing_db=os.path.join(data_dir, "test_pricing.csv")
+    )
+    
+    pricing_result = agent.process_rfp_pricing(formatted_products, test_reqs)
+    total = pricing_result["summary"]["grand_total_inr"]
     
     print(f"Pricing: Total Quote = {total}")
     return {
         "total_cost": total,
+        "pricing_detailed": pricing_result, # Store full detail
         "messages": [{"role": "assistant", "content": f"Quote: {total}"}]
     }
 
@@ -138,7 +161,7 @@ def sales_bid_node(state: AgentState) -> dict:
     
     print(bid_text)
     
-    output_path = os.path.join(os.path.dirname(__file__), "output", "final_bid.txt")
+    output_path = os.path.join(os.path.dirname(__file__), "data", "output", "final_bid.txt")
     with open(output_path, "w") as f:
         f.write(bid_text)
         
@@ -176,7 +199,7 @@ def create_graph():
 
 async def main():
     print("Starting Orchestrator (Brain)...")
-    os.makedirs(os.path.join(os.path.dirname(__file__), "output"), exist_ok=True)
+    os.makedirs(os.path.join(os.path.dirname(__file__), "data", "output"), exist_ok=True)
     
     graph = create_graph()
     config = {"configurable": {"thread_id": "cli_main"}}

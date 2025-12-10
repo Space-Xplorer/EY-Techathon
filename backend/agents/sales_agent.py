@@ -385,7 +385,7 @@ SCOPE SUMMARY:
     
     def _generate_review_pdf(self, review_doc: TechnicalReviewDoc) -> str:
         """Requirement 4: Human review document with traceability"""
-        output_dir = os.path.join(self.base_dir, "output")
+        output_dir = os.path.join(self.base_dir, "data", "output")
         os.makedirs(output_dir, exist_ok=True)
         filename = os.path.join(output_dir, f"{self._safe_filename(review_doc.rfp_title[:50])}_review.pdf")
         
