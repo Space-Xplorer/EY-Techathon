@@ -4,7 +4,7 @@ Validates uploaded files for security and integrity
 """
 
 import os
-import magic
+from pathlib import Path
 from PyPDF2 import PdfReader
 from typing import Dict, Optional
 
@@ -19,7 +19,14 @@ class FileValidator:
     @staticmethod
     def validate_pdf(file_path: str) -> Dict:
         """
-        Comprehensive PDF validation
+        Validate a PDF file.
+        
+        Checks:
+        1. File exists
+        2. File size < 50MB
+        3. Valid PDF header
+        4. Can be read with PyPDF2
+        5. Not password protected
         
         Returns:
             {
@@ -27,8 +34,7 @@ class FileValidator:
                 "error": str | None,
                 "metadata": {
                     "size_mb": float,
-                    "pages": int,
-                    "encrypted": bool
+                    "pages": int
                 }
             }
         """
@@ -53,6 +59,10 @@ class FileValidator:
                 result["error"] = f"File too large: {size_mb:.2f}MB (max: 50MB)"
                 return result
             
+            if file_size == 0:
+                result["error"] = "File is empty"
+                return result
+            
             # Check 3: File extension
             _, ext = os.path.splitext(file_path)
             if ext.lower() not in FileValidator.ALLOWED_TYPES:
@@ -73,7 +83,6 @@ class FileValidator:
                 is_encrypted = reader.is_encrypted
                 
                 result["metadata"]["pages"] = num_pages
-                result["metadata"]["encrypted"] = is_encrypted
                 
                 if is_encrypted:
                     result["error"] = "PDF is password protected"

@@ -75,15 +75,19 @@
 #     import uvicorn
 #     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from typing import List
 from datetime import timedelta
 import os
+import uuid
+import shutil
 from orchestrator import create_graph
 from core.auth import create_access_token, verify_password, get_password_hash
 from core.dependencies import get_current_user, get_current_admin
+from core.validators import FileValidator
 
 # -------------------------------------------------
 # App initialization
@@ -139,6 +143,11 @@ class RegisterRequest(BaseModel):
 class TriggerRequest(BaseModel):
     thread_id: str
     file_path: str | None = None
+
+
+class UploadTriggerRequest(BaseModel):
+    thread_id: str
+    file_paths: List[str]
 
 
 class ApprovalRequest(BaseModel):
@@ -283,10 +292,21 @@ async def get_state(thread_id: str):
 
     state = snapshot.values
 
-    # 🔧 CRITICAL FIX
+    # Normalize review PDF path
     state["review_pdf_path"] = normalize_review_path(
         state.get("review_pdf_path")
     )
+    
+    # Add batch progress info
+    file_index = state.get("file_index", 0)
+    file_paths = state.get("file_paths", [])
+    if file_paths:
+        state["batch_progress"] = {
+            "current_file_index": file_index,
+            "total_files": len(file_paths),
+            "current_file": file_paths[file_index] if file_index < len(file_paths) else None,
+            "files_completed": file_index
+        }
 
     return state
 
@@ -295,17 +315,164 @@ async def get_state(thread_id: str):
 async def approve_rfp(thread_id: str, req: ApprovalRequest):
     config = {"configurable": {"thread_id": thread_id}}
 
+    # Fix: Check if already approved (prevent duplicate execution)
+    current_state = graph.get_state(config)
+    if current_state.values.get("human_approved") == True:
+        return {
+            "status": "already_approved",
+            "message": "This RFP was already approved and processed"
+        }
+
     graph.update_state(config, {"human_approved": req.approved})
 
     if not req.approved:
-        return {"status": "stopped", "message": "RFP rejected"}
+        return {"status": "rejected", "message": "RFP rejected"}
 
     print(f"Resuming workflow for thread {thread_id}...")
-
+    
+    # Continue workflow for current file
     async for _ in graph.astream(None, config=config):
         pass
+    
+    # Check if there are more files to process
+    final_state = graph.get_state(config).values
+    file_index = final_state.get("file_index", 0)
+    file_paths = final_state.get("file_paths", [])
+    
+    # If there are more files, prepare for next one
+    if file_index + 1 < len(file_paths):
+        next_index = file_index + 1
+        next_file = file_paths[next_index]
+        
+        print(f"\n🔄 Moving to next file: {next_index + 1}/{len(file_paths)}")
+        print(f"Processing: {next_file}")
+        
+        # Reset state for next file
+        graph.update_state(config, {
+            "file_path": next_file,
+            "file_index": next_index,
+            "human_approved": False,
+            "is_valid_rfp": True,
+            "review_pdf_path": None,
+            "technical_review": None,
+            "products_matched": None,
+            "pricing_data": None,
+            "total_cost": None
+        })
+        
+        # Start workflow for next file
+        async for _ in graph.astream(None, config=config):
+            pass
+        
+        return {
+            "status": "next_file",
+            "message": f"File approved. Processing file {next_index + 1} of {len(file_paths)}",
+            "files_completed": next_index,
+            "files_total": len(file_paths)
+        }
+    else:
+        # All files processed
+        return {
+            "status": "all_complete",
+            "message": "All RFPs processed and approved",
+            "files_completed": len(file_paths),
+            "files_total": len(file_paths)
+        }
 
-    return {"status": "completed"}
+
+# -------------------------------------------------
+# Multi-File Upload Endpoint
+# -------------------------------------------------
+@app.post("/rfp/upload")
+async def upload_rfp_files(files: List[UploadFile] = File(...)):
+    """
+    Upload multiple RFP PDF files.
+    Returns thread_id and saved file paths.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+    
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 files allowed per upload")
+    
+    # Validate all files first
+    for file in files:
+        if not file.filename.endswith('.pdf'):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type: {file.filename}. Only PDF files allowed."
+            )
+    
+    # Create upload directory
+    rfp_dir = os.path.join(DATA_DIR, "rfps")
+    os.makedirs(rfp_dir, exist_ok=True)
+    
+    # Save all files
+    saved_paths = []
+    for file in files:
+        # Generate unique filename
+        unique_filename = f"{uuid.uuid4()}_{file.filename}"
+        file_path = os.path.join(rfp_dir, unique_filename)
+        
+        # Save file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Validate PDF
+        validation = FileValidator.validate_pdf(file_path)
+        if not validation["valid"]:
+            # Clean up invalid file
+            os.remove(file_path)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid PDF {file.filename}: {validation['error']}"
+            )
+        
+        saved_paths.append(file_path)
+    
+    # Generate thread ID
+    thread_id = str(uuid.uuid4())
+    
+    return {
+        "thread_id": thread_id,
+        "files_uploaded": len(saved_paths),
+        "file_paths": saved_paths,
+        "message": f"Successfully uploaded {len(saved_paths)} file(s)"
+    }
+
+
+@app.post("/rfp/upload/trigger")
+async def trigger_uploaded_workflow(req: UploadTriggerRequest):
+    """
+    Trigger workflow for uploaded files.
+    Processes files sequentially (one at a time with approval between each).
+    """
+    if not req.file_paths:
+        raise HTTPException(status_code=400, detail="No file paths provided")
+    
+    config = {"configurable": {"thread_id": req.thread_id}}
+    
+    # Process first file (sequential processing)
+    initial_state = {
+        "file_path": req.file_paths[0],
+        "file_paths": req.file_paths,  # Store all for sequential processing
+        "file_index": 0,  # Start with first file (0-indexed)
+        "human_approved": False,
+        "is_valid_rfp": True,
+        "messages": []
+    }
+    
+    print(f"Starting workflow for thread {req.thread_id} with {len(req.file_paths)} file(s)...")
+    print(f"Processing file 1/{len(req.file_paths)}: {req.file_paths[0]}")
+    
+    async for _ in graph.astream(initial_state, config=config):
+        pass
+    
+    return {
+        "status": "paused",
+        "message": f"Workflow started with {len(req.file_paths)} file(s) and paused for review.",
+        "files_processing": len(req.file_paths)
+    }
 
 
 @app.get("/")

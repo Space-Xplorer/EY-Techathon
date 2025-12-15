@@ -32,9 +32,11 @@
 from typing import TypedDict, List, Optional
 from langchain_core.messages import BaseMessage
 
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
     rfp_id: Optional[str]
-    file_path: Optional[str]
+    file_path: Optional[str]  # Current file being processed
+    file_paths: Optional[List[str]]  # All files for batch processing
+    file_index: int  # Which file in the batch are we on (0-indexed)
     raw_text: Optional[str]
     
     # Sales Agent Output
