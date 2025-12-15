@@ -46,7 +46,8 @@ def load_pdf_node(state: AgentState) -> dict:
             "messages": [{"role": "user", "content": f"Loaded RFP: {file_path}"}]
         }
     except Exception as e:
-        return {"messages": [{"role": "system", "content": f"Error: {e}"}], "is_valid_rfp": False}
+        print(f"Loader Error: {e}")
+        return {"messages": [{"role": "system", "content": f"Error loading PDF: {e}"}], "is_valid_rfp": False}
 
 def sales_analysis_node(state: AgentState) -> dict:
     """Sales Agent: Analyzes PDF and generates Review Doc."""
@@ -172,6 +173,7 @@ def sales_bid_node(state: AgentState) -> dict:
 # --- GRAPH DEFINITION ---
 
 def create_graph():
+    """Create the workflow graph with persistent checkpointing"""
     workflow = StateGraph(AgentState)
     
     # Nodes
@@ -191,8 +193,11 @@ def create_graph():
     workflow.add_edge("pricing", "sales_bid")
     workflow.add_edge("sales_bid", END)
     
-    memory = MemorySaver()
-    app = workflow.compile(checkpointer=memory, interrupt_before=["technical"])
+    # Prototype mode: Use simple in-memory checkpointing
+    checkpointer = MemorySaver()
+    print("✅ Using in-memory checkpointing (prototype mode - simple & fast)")
+    
+    app = workflow.compile(checkpointer=checkpointer, interrupt_before=["technical"])
     return app
 
 # --- CLI RUNNER ---

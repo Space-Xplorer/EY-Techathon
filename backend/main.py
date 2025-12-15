@@ -75,12 +75,15 @@
 #     import uvicorn
 #     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from datetime import timedelta
 import os
 from orchestrator import create_graph
+from core.auth import create_access_token, verify_password, get_password_hash
+from core.dependencies import get_current_user, get_current_admin
 
 # -------------------------------------------------
 # App initialization
@@ -96,12 +99,10 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 # -------------------------------------------------
 # CORS
 # -------------------------------------------------
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -124,6 +125,17 @@ graph = create_graph()
 # -------------------------------------------------
 # Models
 # -------------------------------------------------
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    role: str = "user"
+
+
 class TriggerRequest(BaseModel):
     thread_id: str
     file_path: str | None = None
@@ -131,6 +143,79 @@ class TriggerRequest(BaseModel):
 
 class ApprovalRequest(BaseModel):
     approved: bool
+
+
+# -------------------------------------------------
+# Temporary in-memory user store (replace with Supabase in production)
+# -------------------------------------------------
+TEMP_USERS = {
+    "admin": {
+        "username": "admin",
+        "hashed_password": get_password_hash("admin123"),
+        "role": "admin"
+    },
+    "user": {
+        "username": "user",
+        "hashed_password": get_password_hash("user123"),
+        "role": "user"
+    }
+}
+
+
+# -------------------------------------------------
+# Authentication Endpoints
+# -------------------------------------------------
+@app.post("/auth/login")
+async def login(request: LoginRequest):
+    """
+    Login endpoint - Returns JWT token
+    
+    Test credentials:
+    - username: admin, password: admin123 (admin role)
+    - username: user, password: user123 (user role)
+    """
+    user = TEMP_USERS.get(request.username)
+    
+    if not user or not verify_password(request.password, user["hashed_password"]):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password"
+        )
+    
+    access_token = create_access_token(
+        data={"sub": user["username"], "role": user["role"]}
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "username": user["username"],
+        "role": user["role"]
+    }
+
+
+@app.post("/auth/register")
+async def register(request: RegisterRequest):
+    """Register a new user (temporary in-memory storage)"""
+    if request.username in TEMP_USERS:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    TEMP_USERS[request.username] = {
+        "username": request.username,
+        "hashed_password": get_password_hash(request.password),
+        "role": request.role
+    }
+    
+    return {
+        "message": "User created successfully",
+        "username": request.username
+    }
+
+
+@app.get("/auth/me")
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+    """Get current user information"""
+    return current_user
 
 
 # -------------------------------------------------
@@ -227,7 +312,35 @@ async def approve_rfp(thread_id: str, req: ApprovalRequest):
 async def root():
     return {
         "message": "Asian Paints RFP Orchestrator API is running",
-        "docs_url": "/docs"
+        "docs_url": "/docs",
+        "version": "2.0.0",
+        "auth": "Login at /auth/login for protected endpoints"
+    }
+
+
+# -------------------------------------------------
+# Admin Endpoints
+# -------------------------------------------------
+@app.post("/admin/cleanup")
+async def trigger_cleanup(current_user: dict = Depends(get_current_admin)):
+    """
+    Manually trigger database cleanup
+    Requires admin role
+    """
+    from services.cleanup import DatabaseCleanup
+    import asyncio
+    
+    cleanup = DatabaseCleanup(
+        supabase_url=os.getenv("SUPABASE_URL"),
+        supabase_key=os.getenv("SUPABASE_KEY"),
+        checkpoint_db_uri=os.getenv("CHECKPOINT_DB_URI")
+    )
+    
+    result = await cleanup.run_full_cleanup()
+    return {
+        "status": "success",
+        "deleted": result,
+        "admin": current_user["username"]
     }
 
 

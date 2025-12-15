@@ -1,17 +1,40 @@
-fastapi
-uvicorn
-langgraph
-langchain
-langchain-community
-langchain-openai
-pypdf
-supabase
-python-dotenv
-pydantic
-httpx
-psycopg2-binary
-anthropic
-beautifulsoup4
-reportlab
-PyPDF2
-groq
+# Core Framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# LangGraph & LangChain
+langgraph==0.2.59
+langchain==0.3.13
+langchain-groq==0.2.1
+langchain-community==0.3.13
+langchain-core==0.3.28
+
+# Database & Storage
+supabase==2.10.0
+
+# AI/ML APIs
+groq==0.13.0
+# openai==1.57.4  # Optional - uncomment if needed
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1  # Pin to compatible version with passlib
+pydantic-settings==2.7.0
+
+# Utilities
+python-dotenv==1.0.1
+PyPDF2==3.0.1
+reportlab==4.2.5
+
+# Optional: Redis (gracefully skips if not available)
+redis==5.2.1
+
+# Optional: PostgreSQL async (gracefully skips if not available)
+# asyncpg==0.30.0  # Commented for prototype
+# psycopg2-binary==2.9.10  # Commented for prototype
+
+# Development
+pytest==8.3.4
+
