@@ -1,37 +1,17 @@
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
+import os
+import re
+from dataclasses import dataclass, asdict
+from typing import List, Dict, Optional
+
 from PyPDF2 import PdfReader
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-try:
-    from langchain_core.tools import tool
-except Exception:
-    # Fallback no-op decorator when langchain_core not installed
-    def tool(func=None, **kwargs):
-        if func is None:
-            def _wrap(f):
-                return f
-            return _wrap
-        return func
-from dataclasses import dataclass
-from typing import List, Dict, Optional
-from datetime import datetime, timedelta
-import re
-import os
-import json
-import shutil
+
+# -------------------------------------------------
+# Models
+# -------------------------------------------------
 
 @dataclass
-class RFP:
-    title: str
-    due_date: str
-    pdf_url: str
-    source_url: str
-    priority: str
-    keywords_matched: List[str]
-
-@dataclass 
 class TechnicalReviewDoc:
     rfp_title: str
     summary: str
@@ -42,480 +22,189 @@ class TechnicalReviewDoc:
     human_action_required: bool
     review_pdf_path: Optional[str] = None
 
+    def to_dict(self) -> Dict:
+        return asdict(self)
+
+# -------------------------------------------------
+# Sales Agent
+# -------------------------------------------------
+
 class SalesAgent:
     def __init__(self):
         self.cable_keywords = [
-            "xlpe", "cable", "wire", "lt cable", "ht cable", 
+            "xlpe", "cable", "wire", "lt cable", "ht cable",
             "fire resistant", "power cable", "electrical"
         ]
-        # Resolve 'backend' directory (parent of 'agents' where this file resides)
-        self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    
-    def process_complete_pipeline(self, urls: List[str]) -> TechnicalReviewDoc:
-        """Complete Sales Agent pipeline per requirements"""
-        print("Sales Agent: Starting RFP pipeline...")
-        
-        # 1. SCAN URLs for RFPs due <90 days
-        rfps = self.scan_tenders(urls)
-        best_rfp = self.select_best_rfp(rfps)
-        if not best_rfp:
-            print("No suitable RFPs found")
-            return None
-        
-        print(f"Selected: {best_rfp.title} (Priority: {best_rfp.priority})")
-        
-        # 2. DOWNLOAD PDF
-        pdf_path = self._download_pdf(best_rfp.pdf_url, best_rfp.title)
-        
-        # 3. ANALYZE PDF + CREATE TECHNICAL REVIEW
-        analysis = self._analyze_pdf(pdf_path)
-        review_doc = TechnicalReviewDoc(
-            rfp_title=best_rfp.title,
-            summary=analysis["summary"],
-            extracted_specs=analysis["specs"],
-            traceability=analysis["traceability"],
-            recommendation="APPROVE FOR TECHNICAL TEAM - High relevance",
-            original_pdf_path=pdf_path,
-            human_action_required=True
+        self.base_dir = os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))
         )
-        
-        # 4. GENERATE HUMAN REVIEW PDF
-        review_pdf_path = self._generate_review_pdf(review_doc)
-        review_doc.review_pdf_path = review_pdf_path
-        
-        print(f"Technical Review ready: {review_pdf_path}")
-        print("AWAITING SALES TEAM APPROVAL...")
-        
-        return review_doc
 
-    def process_local_file(self, file_path: str) -> TechnicalReviewDoc:
-        """Process a specific local PDF file directly, bypassing scanning"""
+    # -------------------------------------------------
+    # ENTRY POINT USED BY GRAPH
+    # -------------------------------------------------
+    def process_local_file(self, file_path: str) -> Optional[TechnicalReviewDoc]:
         print(f"Sales Agent: Processing local file: {file_path}")
-        
+
         if not os.path.exists(file_path):
-             print(f"File not found: {file_path}")
-             return None
-             
-        # 3. ANALYZE PDF
+            print(f"❌ File not found: {file_path}")
+            return None
+
         analysis = self._analyze_pdf(file_path)
-        
-        # Extract title from filename
-        title = os.path.basename(file_path).replace('.pdf', '').replace('_', ' ')
-        
+
+        title = os.path.basename(file_path).replace(".pdf", "").replace("_", " ")
+
         review_doc = TechnicalReviewDoc(
             rfp_title=title,
             summary=analysis["summary"],
             extracted_specs=analysis["specs"],
             traceability=analysis["traceability"],
-            recommendation="APPROVE FOR TECHNICAL TEAM - Direct Upload",
+            recommendation="APPROVE FOR TECHNICAL TEAM",
             original_pdf_path=file_path,
             human_action_required=True
         )
-        
-        # 4. GENERATE HUMAN REVIEW PDF
-        review_pdf_path = self._generate_review_pdf(review_doc)
-        review_doc.review_pdf_path = review_pdf_path
-        
-        print(f"Technical Review ready: {review_pdf_path}")
+
+        review_doc.review_pdf_path = self._generate_review_pdf(review_doc)
+
+        print(f"Technical Review ready: {review_doc.review_pdf_path}")
         return review_doc
 
-    def generate_final_bid(self, review_doc: Dict, total_amount: float) -> str:
-        """
-        Generates a final bid document/summary.
-        Handles missing data gracefully.
-        """
-        if not review_doc:
-            review_doc = {}
-            
-        rfp_title = review_doc.get("rfp_title", "Unknown Request")
-        
-        # safely get summary name
-        # summary is a string, so we just use rfp_title or the summary text itself
-        rfp_name = rfp_title
-        
-        # safely get product count
-        specs = review_doc.get('extracted_specs') or {}
-        products = products = specs.get('products') or []
-        # if products is actually the dict of specs?
-        # In analyze_pdf: "products": [...] list.
-        # Wait, analyze_pdf returns "specs": {...}
-        # And specs has "products"? No.
-        # analyze_pdf: specs = {"size":..., "voltage":...}
-        # It does NOT have "products" list key.
-        # It has "products" list in seed_db but not here?
-        # Let's check analyze_pdf return value logic.
-        
-        # For MVP, specs is a dict of keys.
-        product_count = len(specs)
-        
-        # safely format cost
-        try:
-            cost_str = f"{total_amount:,.2f}" if total_amount is not None else "0.00"
-        except Exception:
-            cost_str = "0.00"
-
-        bid_summary = f"""
-==================================================
-              ASIAN PAINTS - FINAL BID
-==================================================
-Project: {rfp_title}
-
-Based on our technical review and product selection:
-
-Technical Compliance:
-- Summary: {rfp_name}
-- Extracted Specs: {product_count} items analyzed
-
-Commercial Offer:
---------------------------------------------------
-TOTAL QUOTE VALUE: INR {cost_str}
---------------------------------------------------
-
-This bid is valid for 30 days.
-Authorized Signatory: Sales Agent
-==================================================
-"""
-        return bid_summary
-
-    def process_all_rfps(self, urls: List[str], limit: Optional[int] = None) -> List[TechnicalReviewDoc]:
-        """Process all discovered RFPs and produce TechnicalReviewDocs for each.
-
-        Args:
-            urls: list of portal URLs to scan
-            limit: optional maximum number of RFPs to process
-
-        Returns:
-            List of `TechnicalReviewDoc` objects created (one per RFP processed).
-        """
-        rfps = self.scan_tenders(urls)
-        # Deduplicate RFPs by normalized PDF URL to avoid processing duplicates
-        def _normalize_pdf_url(u: str) -> str:
-            if not u:
-                return ''
-            try:
-                if u.startswith('file://'):
-                    p = os.path.abspath(u.replace('file://', ''))
-                    return f'file://{p}'
-                parsed = urlparse(u)
-                # normalize by scheme + netloc + path
-                return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-            except Exception:
-                return u
-
-        unique = {}
-        for r in rfps:
-            key = _normalize_pdf_url(r.pdf_url)
-            if key not in unique:
-                unique[key] = r
-
-        rfps = list(unique.values())
-
-        docs: List[TechnicalReviewDoc] = []
-        count = 0
-        total = len(rfps)
-        print(f"Found {total} unique RFPs after deduplication")
-        for rfp in rfps:
-            if limit and count >= limit:
-                break
-            print(f"\nProcessing RFP ({count+1}/{len(rfps)}): {rfp.title}")
-            pdf_path = self._download_pdf(rfp.pdf_url, rfp.title)
-            analysis = self._analyze_pdf(pdf_path)
-            review_doc = TechnicalReviewDoc(
-                rfp_title=rfp.title,
-                summary=analysis["summary"],
-                extracted_specs=analysis["specs"],
-                traceability=analysis["traceability"],
-                recommendation="APPROVE FOR TECHNICAL TEAM - Auto",
-                original_pdf_path=pdf_path,
-                human_action_required=True
-            )
-            review_pdf = self._generate_review_pdf(review_doc)
-            review_doc.review_pdf_path = review_pdf
-            docs.append(review_doc)
-            count += 1
-        print(f"\nProcessed {len(docs)} RFPs and generated {len(docs)} review PDFs")
-        return docs
-    
-    def scan_tenders(self, urls: List[str]) -> List[RFP]:
-        """Requirement 1: Scan URLs for RFPs due <90 days"""
-        print("Scanning tender portals...")
-        all_rfps = []
-        cutoff = datetime.now() + timedelta(days=90)
-        
-        for url in urls:
-            print(f"   {url}")
-            try:
-                # Handle file:// URLs
-                if url.startswith("file://"):
-                    with open(url.replace("file://", ""), 'r') as f:
-                        html = f.read()
-                else:
-                    html = requests.get(url, timeout=10).text
-                
-                soup = BeautifulSoup(html, 'html.parser')
-                tenders = self._extract_tenders(soup, url)
-                
-                for tender in tenders:
-                    rfp = self._validate_rfp(tender, cutoff)
-                    if rfp:
-                        all_rfps.append(rfp)
-            except Exception as e:
-                print(f"   Error: {e}")
-        
-        all_rfps.sort(key=lambda x: self._parse_date(x.due_date))
-        print(f"Found {len(all_rfps)} relevant RFPs")
-        return all_rfps
-    
-    def select_best_rfp(self, rfps: List[RFP]) -> Optional[RFP]:
-        """Requirement 3: Select 1 RFP for response"""
-        if not rfps:
-            return None
-        
-        # HIGH priority first (<30 days)
-        for rfp in rfps:
-            if rfp.priority == "HIGH":
-                return rfp
-        return rfps[0]
-    
-    def _download_pdf(self, pdf_url: str, title: str) -> str:
-        """Download PDF for analysis"""
-        rfps_dir = os.path.join(self.base_dir, "data", "rfps")
-        os.makedirs(rfps_dir, exist_ok=True)
-        
-        safe_name = self._safe_filename(title[:50])
-        filename = os.path.join(rfps_dir, f"{safe_name}.pdf")
-        
-        if pdf_url.startswith("file://"):
-            src = pdf_url.replace("file://", "")
-            try:
-                # If src is relative, try to resolve it relative to base_dir if it doesn't exist?
-                # But file:// usually implies absolute or cwd-relative.
-                # Let's check if src exists.
-                if not os.path.exists(src):
-                    # Try relative to backend dir
-                    potential_src = os.path.join(self.base_dir, src)
-                    if os.path.exists(potential_src):
-                        src = potential_src
-                
-                src_abs = os.path.abspath(src)
-                # Always copy local PDFs into `data/rfps` as the canonical store
-                shutil.copy(src_abs, filename)
-                # If the source was inside `mock_tenders`, remove it to avoid duplicates
-                try:
-                    mock_dir = os.path.abspath(os.path.join(os.getcwd(), 'mock_tenders'))
-                    if os.path.commonpath([src_abs, mock_dir]) == mock_dir:
-                        os.remove(src_abs)
-                except Exception:
-                    # don't fail if we can't remove the original
-                    pass
-                return filename
-            except Exception:
-                # If direct copy failed, try to resolve basename into data/rfps
-                try:
-                    base = os.path.basename(src)
-                    candidate = os.path.join(rfps_dir, base)
-                    if os.path.exists(candidate):
-                        return candidate
-                    # fallback: return first pdf in data/rfps if available
-                    files = [f for f in os.listdir(rfps_dir) if f.lower().endswith('.pdf')]
-                    if files:
-                        return os.path.join(rfps_dir, files[0])
-                except Exception:
-                    pass
-                return filename
-
-        try:
-            response = requests.get(pdf_url, timeout=10)
-            response.raise_for_status()
-            with open(filename, 'wb') as f:
-                f.write(response.content)
-            return filename
-        except Exception:
-            # Fallback
-            fallback_path = os.path.join(self.base_dir, "mock_tenders", "rfp1.pdf")
-            return fallback_path
-    
+    # -------------------------------------------------
+    # PDF ANALYSIS
+    # -------------------------------------------------
     def _analyze_pdf(self, pdf_path: str) -> Dict:
-        """Requirement 2: Analyze PDF -> Extract specs + traceability"""
         specs = {}
         traceability = []
-        
+
         try:
-            with open(pdf_path, 'rb') as file:
-                reader = PdfReader(file)
-                for page_num, page in enumerate(reader.pages, 1):
-                    try:
-                        text = page.extract_text() or ""
-                    except Exception:
-                        text = ""
-                    text_lower = text.lower()
+            reader = PdfReader(pdf_path)
+            for page_num, page in enumerate(reader.pages, 1):
+                try:
+                    text = page.extract_text() or ""
+                except Exception:
+                    text = ""
 
-                    # Extract with page references (first occurrence wins)
-                    size_match = re.search(r"(\d+)\s*sq\s*mm", text_lower)
-                    if size_match and 'size' not in specs:
-                        specs["size"] = f"{size_match.group(1)}sqmm (Page {page_num})"
-                        traceability.append({"page": page_num, "text": size_match.group(0)})
+                t = text.lower()
 
-                    voltage_match = re.search(r"(\d+(?:\.\d+)?)\s*k?v", text_lower)
-                    if voltage_match and 'voltage' not in specs:
-                        specs["voltage"] = f"{voltage_match.group(1)}kV (Page {page_num})"
-                        traceability.append({"page": page_num, "text": voltage_match.group(0)})
+                size_match = re.search(r"(\d+)\s*sq\s*mm", t)
+                if size_match and "size" not in specs:
+                    specs["size"] = f"{size_match.group(1)} sqmm (Page {page_num})"
+                    traceability.append(
+                        {"page": page_num, "text": size_match.group(0)}
+                    )
 
-                    if any(fr in text_lower for fr in ["fire resistant", "fire survival"]):
-                        if 'fire_rating' not in specs:
-                            specs["fire_rating"] = f"Fire Resistant (Page {page_num})"
-                            traceability.append({"page": page_num, "text": "fire resistant"})
+                voltage_match = re.search(r"(\d+(?:\.\d+)?)\s*k?v", t)
+                if voltage_match and "voltage" not in specs:
+                    specs["voltage"] = f"{voltage_match.group(1)} kV (Page {page_num})"
+                    traceability.append(
+                        {"page": page_num, "text": voltage_match.group(0)}
+                    )
+
+                if "fire resistant" in t and "fire_rating" not in specs:
+                    specs["fire_rating"] = f"Fire Resistant (Page {page_num})"
+                    traceability.append(
+                        {"page": page_num, "text": "fire resistant"}
+                    )
+
         except Exception as e:
-            print(f"   PDF parse error for {pdf_path}: {e}")
+            print(f"⚠️ PDF parse error: {e}")
 
-        # If no specs were found after parsing, use a conservative mock fallback
         if not specs:
-            specs = {"size": "95sqmm (Page 5)", "voltage": "1.1kV (Page 8)"}
-            traceability = [{"page": 5, "text": "95sqmm"}, {"page": 8, "text": "1.1kV"}]
-        
+            specs = {
+                "size": "95 sqmm (Assumed)",
+                "voltage": "1.1 kV (Assumed)"
+            }
+            traceability = [
+                {"page": "-", "text": "Fallback defaults applied"}
+            ]
+
         summary = f"""
-SCOPE SUMMARY:
-- Size: {specs.get('size', 'N/A')}
-- Voltage: {specs.get('voltage', 'N/A')}  
-- Fire Rating: {specs.get('fire_rating', 'Standard')}
-- Traceability: {len(traceability)} extractions found
-        """
-        
-        return {"summary": summary.strip(), "specs": specs, "traceability": traceability}
-    
+SCOPE SUMMARY
+-------------
+Size: {specs.get("size")}
+Voltage: {specs.get("voltage")}
+Fire Rating: {specs.get("fire_rating", "Standard")}
+Extractions Found: {len(traceability)}
+""".strip()
+
+        return {
+            "summary": summary,
+            "specs": specs,
+            "traceability": traceability
+        }
+
+    # -------------------------------------------------
+    # REVIEW PDF
+    # -------------------------------------------------
     def _generate_review_pdf(self, review_doc: TechnicalReviewDoc) -> str:
-        """Requirement 4: Human review document with traceability"""
         output_dir = os.path.join(self.base_dir, "data", "output")
         os.makedirs(output_dir, exist_ok=True)
-        filename = os.path.join(output_dir, f"{self._safe_filename(review_doc.rfp_title[:50])}_review.pdf")
-        
+
+        filename = os.path.join(
+            output_dir,
+            f"{self._safe_filename(review_doc.rfp_title)}_review.pdf"
+        )
+
         c = canvas.Canvas(filename, pagesize=letter)
         y = 750
-        
-        # Header
-        c.drawString(100, y, "SALES TEAM - TECHNICAL REVIEW") ; y -= 40
-        c.drawString(100, y, f"RFP: {review_doc.rfp_title}") ; y -= 30
-        c.drawString(100, y, "=" * 60) ; y -= 25
-        
-        # Summary
-        c.drawString(100, y, "EXTRACTION SUMMARY:") ; y -= 25
-        for line in review_doc.summary.split('\n'):
-            if y > 100:
-                c.drawString(120, y, line[:80]) ; y -= 20
-        
-        # Specs table
-        c.drawString(100, y, "EXTRACTED SPECIFICATIONS:") ; y -= 25
-        for spec, value in review_doc.extracted_specs.items():
-            if y > 100:
-                c.drawString(120, y, f"- {spec.upper()}: {value}") ; y -= 20
-        
-        # Traceability
-        c.drawString(100, y, "TRACEABILITY (Source Proof):") ; y -= 25
-        for trace in review_doc.traceability[:6]:
-            if y > 100:
-                c.drawString(120, y, f"  Pg {trace['page']}: '{trace['text']}'") ; y -= 18
-        
-        # Action buttons
-        c.drawString(100, y, "=" * 60) ; y -= 20
-        c.drawString(100, y, review_doc.recommendation) ; y -= 30
-        c.drawString(100, y, "ACTIONS: [APPROVE] [REJECT] [TRUST AGENT]") ; y -= 20
-        c.drawString(100, y, f"Original PDF: {review_doc.original_pdf_path}")
-        
+
+        c.drawString(80, y, "SALES TEAM – TECHNICAL REVIEW"); y -= 40
+        c.drawString(80, y, f"RFP: {review_doc.rfp_title}"); y -= 30
+        c.drawString(80, y, "-" * 80); y -= 25
+
+        for line in review_doc.summary.split("\n"):
+            c.drawString(80, y, line); y -= 18
+
+        y -= 20
+        c.drawString(80, y, "EXTRACTED SPECS:"); y -= 20
+        for k, v in review_doc.extracted_specs.items():
+            c.drawString(100, y, f"{k.upper()}: {v}"); y -= 18
+
+        y -= 20
+        c.drawString(80, y, "TRACEABILITY:"); y -= 20
+        for t in review_doc.traceability[:6]:
+            c.drawString(100, y, f"Pg {t['page']} → {t['text']}"); y -= 16
+
+        y -= 30
+        c.drawString(80, y, review_doc.recommendation)
+
         c.save()
         return filename
-    
-    # Utility methods (unchanged from previous)
-    def _extract_tenders(self, soup: BeautifulSoup, base_url: str) -> List[Dict]:
-        tenders = []
-        
-        # Table format
-        for row in soup.find_all('tr'):
-            cols = row.find_all(['td', 'th'])
-            if len(cols) >= 2:
-                title = cols[0].get_text(strip=True)
-                due_date = cols[1].get_text(strip=True)
-                pdf_link = row.find('a', href=re.compile(r'\.pdf', re.I))
-                if pdf_link and any(kw in title.lower() for kw in self.cable_keywords):
-                    tenders.append({
-                        'title': title,
-                        'due_date': due_date,
-                        'pdf_url': urljoin(base_url, pdf_link['href'])
-                    })
 
-        # Div/list format (example: GeM mock)
-        for item in soup.select('.tender-item'):
-            title_tag = item.find(['h3', 'h2', 'h1'])
-            p_tag = item.find('p')
-            if not title_tag:
-                continue
-            title = title_tag.get_text(strip=True)
-            due_date = ''
-            if p_tag:
-                # Try to parse 'Due Date: ...' in p text
-                txt = p_tag.get_text(' ', strip=True)
-                m = re.search(r'Due Date[:\s]*([^|]+)', txt, re.I)
-                if m:
-                    due_date = m.group(1).strip()
-            link = item.find('a', href=re.compile(r'\.pdf', re.I))
-            if link and any(kw in title.lower() for kw in self.cable_keywords):
-                tenders.append({'title': title, 'due_date': due_date, 'pdf_url': urljoin(base_url, link.get('href'))})
+    # -------------------------------------------------
+    # ✅ FINAL BID (THIS FIXES YOUR 500 ERROR)
+    # -------------------------------------------------
+    def generate_final_bid(self, technical_review: dict, total_cost: float) -> str:
+        rfp_title = technical_review.get("rfp_title", "RFP")
+        summary = technical_review.get("summary", "")
 
-        # Generic anchors with surrounding text that may indicate cable keywords
-        for a in soup.find_all('a', href=re.compile(r'\.pdf', re.I)):
-            surrounding = a.find_parent().get_text(' ', strip=True) if a.find_parent() else a.get_text(' ', strip=True)
-            if any(kw in surrounding.lower() for kw in self.cable_keywords):
-                tenders.append({'title': surrounding.strip(), 'due_date': '', 'pdf_url': urljoin(base_url, a.get('href'))})
+        return f"""
+FINAL COMMERCIAL BID
+===================
 
-        return tenders
-    
-    def _validate_rfp(self, tender: Dict, cutoff: datetime) -> Optional[RFP]:
-        due_date = self._parse_date(tender['due_date'])
-        if not due_date or due_date > cutoff:
-            return None
-        
-        days_ahead = (due_date - datetime.now()).days
-        priority = "HIGH" if days_ahead <= 30 else "MEDIUM"
-        
-        title_lower = tender['title'].lower()
-        keywords = [kw for kw in self.cable_keywords if kw in title_lower]
-        
-        return RFP(
-            title=tender['title'],
-            due_date=tender['due_date'],
-            pdf_url=tender['pdf_url'],
-            source_url="mock_source",
-            priority=priority,
-            keywords_matched=keywords
-        )
-    
-    def _parse_date(self, date_str: str) -> Optional[datetime]:
-        for fmt in ['%d-%b-%Y', '%d-%m-%Y', '%d/%m/%Y', '%Y-%m-%d']:
-            try:
-                return datetime.strptime(date_str.strip(), fmt)
-            except:
-                continue
-        return None
-    
+RFP TITLE:
+{rfp_title}
+
+TECHNICAL SUMMARY:
+{summary}
+
+TOTAL QUOTED PRICE:
+₹ {total_cost:,.2f}
+
+VALIDITY:
+90 Days
+
+DELIVERY:
+As per RFP terms
+
+PAYMENT TERMS:
+Standard OEM terms
+
+---
+System generated. Subject to management approval.
+""".strip()
+
+    # -------------------------------------------------
+    # UTILS
+    # -------------------------------------------------
     def _safe_filename(self, name: str) -> str:
-        return re.sub(r'[^\w\-_\.]', '_', name)
-
-if __name__ == "__main__":
-    agent = SalesAgent()
-    
-    # Test with mock data
-    urls = [
-        "file://mock_tenders/ntpc_portal.html",
-        "file://mock_tenders/gem_portal.html"
-    ]
-    
-    review_doc = agent.process_complete_pipeline(urls)
-    
-    if review_doc:
-        print("\nSUCCESS! Technical Review Document ready for human approval")
-        print(f"Files generated:")
-        print(f"   - Original PDF: {review_doc.original_pdf_path}")
-        if getattr(review_doc, 'review_pdf_path', None):
-            print(f"   - Review PDF: {review_doc.review_pdf_path}")
-        else:
-            # Best-effort fallback to expected output path
-            print(f"   - Review PDF (expected): output/{agent._safe_filename(review_doc.rfp_title[:50])}_review.pdf")
+        return re.sub(r"[^\w\-_.]", "_", name)

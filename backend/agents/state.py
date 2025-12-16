@@ -1,61 +1,20 @@
-# from typing import TypedDict, List, Optional, Any
-# from langgraph.graph import add_messages
-# from langchain_core.messages import BaseMessage
-
-# class AgentState(TypedDict):
-#     rfp_id: Optional[str]
-#     file_path: Optional[str]
-#     raw_text: Optional[str]
-    
-#     # Sales Agent Output
-#     technical_review: Optional[dict] # Serialized TechnicalReviewDoc
-#     review_pdf_path: Optional[str]
-    
-#     # Legacy / Compatibility fields (optional)
-#     technical_specs: Optional[List[dict]] 
-#     test_reqs: Optional[List[dict]]       
-    
-#     # Technical Agent Output
-#     products_matched: Optional[List[dict]] # Mappings of rfp_item -> oem_product
-    
-#     # Pricing Agent Output
-#     pricing_data: Optional[List[dict]]
-#     total_cost: Optional[float]
-    
-#     # Logic Checks
-#     is_valid_rfp: bool
-#     human_approved: bool
-    
-#     messages: List[BaseMessage]
-
-
-from typing import TypedDict, List, Optional
-from langchain_core.messages import BaseMessage
+from typing import List, Optional, Dict, Any
+from typing_extensions import TypedDict
 
 class AgentState(TypedDict, total=False):
-    rfp_id: Optional[str]
-    file_path: Optional[str]  # Current file being processed
-    file_paths: Optional[List[str]]  # All files for batch processing
-    file_index: int  # Which file in the batch are we on (0-indexed)
-    raw_text: Optional[str]
-    
-    # Sales Agent Output
-    technical_review: Optional[dict]
-    review_pdf_path: Optional[str]
-    
-    # Legacy / Compatibility
-    technical_specs: Optional[List[dict]]
-    test_reqs: Optional[List[dict]]
-    
-    # Technical Agent Output
-    products_matched: Optional[List[dict]]
-    
-    # ✅ Pricing Agent Output (FIX)
-    pricing_detailed: Optional[dict]   # <-- ADD THIS
-    total_cost: Optional[float]
-    
-    # Logic Checks
-    is_valid_rfp: bool
+    file_paths: List[str]
+    file_index: int
+
+    # batch results after sales analysis
+    rfp_results: List[Dict[str, Any]]
+
+    # human loop
     human_approved: bool
-    
-    messages: List[BaseMessage]
+    selected_rfp_index: Optional[int]
+
+    # active (selected) RFP
+    file_path: Optional[str]
+    technical_review: Optional[Dict]
+    products_matched: Optional[List[Dict]]
+    pricing_detailed: Optional[Dict]
+    total_cost: Optional[float]

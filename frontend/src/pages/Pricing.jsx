@@ -17,7 +17,7 @@ export default function Pricing() {
       const res = await getWorkflowState(threadId);
       setState(res.data);
 
-      if (res.data?.pricing_detailed) {
+     if (res.data?.pricing_detailed.summary || res.data?.status === "completed") {
         setIsLoading(false);
         clearInterval(poll);
       }

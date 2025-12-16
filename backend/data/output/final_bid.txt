@@ -1,20 +1,28 @@
+FINAL COMMERCIAL BID
+===================
 
-==================================================
-              ASIAN PAINTS - FINAL BID
-==================================================
-Project: b46ec361-ab23-4953-a642-4bb7c23acb48 RFP1 Govt PWD Amaravati
+RFP TITLE:
+4fb06aba-4c31-450b-9f12-a7963c48f8c0 rfp5
 
-Based on our technical review and product selection:
+TECHNICAL SUMMARY:
+SCOPE SUMMARY
+-------------
+Size: 150 sqmm (Page 1)
+Voltage: 1.1 kV (Page 1)
+Fire Rating: Fire Resistant (Page 1)
+Extractions Found: 3
 
-Technical Compliance:
-- Summary: b46ec361-ab23-4953-a642-4bb7c23acb48 RFP1 Govt PWD Amaravati
-- Extracted Specs: 1 items analyzed
+TOTAL QUOTED PRICE:
+₹ 16,522,000.00
 
-Commercial Offer:
---------------------------------------------------
-TOTAL QUOTE VALUE: INR 21,488,500.00
---------------------------------------------------
+VALIDITY:
+90 Days
 
-This bid is valid for 30 days.
-Authorized Signatory: Sales Agent
-==================================================
+DELIVERY:
+As per RFP terms
+
+PAYMENT TERMS:
+Standard OEM terms
+
+---
+System generated. Subject to management approval.
