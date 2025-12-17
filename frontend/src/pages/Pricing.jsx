@@ -34,13 +34,21 @@ export default function Pricing() {
         if (!response.ok) throw new Error('Failed to get pricing');
         
         const result = await response.json();
+        console.log('🔍 API Response:', result);
+        console.log('🔍 Pricing data:', result.pricing);
+        console.log('🔍 Final bid in response:', result.pricing?.final_bid);
+        
         setPricingData(result.pricing);
         
         // Store the complete result including final_bid in global state
-        setState(prevState => ({
-          ...prevState,
+        const newState = {
+          ...state,
           ...result.pricing
-        }));
+        };
+        console.log('🔍 New state to be set:', newState);
+        console.log('🔍 Final bid in new state:', newState.final_bid);
+        
+        setState(newState);
         
         setIsLoading(false);
       } catch (error) {

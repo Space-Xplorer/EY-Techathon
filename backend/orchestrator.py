@@ -143,12 +143,17 @@ def sales_bid_node(state: AgentState) -> dict:
     with open(bid_path, "w", encoding="utf-8") as f:
         f.write(bid_text)
 
-    return {
+    result = {
         "final_bid": {
             "text": bid_text,
             "path": "/files/output/final_bid.txt"
         }
     }
+    
+    print(f"🔍 DEBUG - sales_bid_node returning: {result}")
+    print(f"🔍 DEBUG - Bid text length: {len(bid_text)} characters")
+    
+    return result
 
 
 # =================================================

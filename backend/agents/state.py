@@ -24,6 +24,9 @@ class AgentState(TypedDict, total=False):
     pricing_detailed: Optional[dict]
     total_cost: Optional[float]
     
+    # ✅ Sales Agent Output - Final Bid
+    final_bid: Optional[dict]  # {"text": str, "path": str}
+    
     # Batch Processing - Track all results
     batch_progress: Optional[dict]  # {"current_file_index", "total_files", "all_results": [...]}
     

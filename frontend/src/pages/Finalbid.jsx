@@ -1,59 +1,28 @@
 import { useEffect, useState } from "react";
 import { useRfpStore } from "../store/rfpStore";
-import { getWorkflowState } from "../api/rfpApi";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Home, FileText, Download } from "lucide-react";
+import { Loader2, Home, FileText, Download, AlertCircle, Printer } from "lucide-react";
 
 export default function FinalBid() {
-  const { threadId, state, setState } = useRfpStore();
+  const { state } = useRfpStore();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [bidText, setBidText] = useState("");
-  const [bidPath, setBidPath] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Check if final_bid data is already in state
+    console.log('FinalBid mounted, state:', state);
+    
+    // Check if we have final_bid data
     if (state?.final_bid?.text) {
-      console.log('Final bid found in state');
-      setBidText(state.final_bid.text);
-      setBidPath(state.final_bid.path);
+      console.log('✅ Final bid found in state');
       setLoading(false);
-      return;
+    } else {
+      console.error('❌ No final bid in state:', state);
+      setError('Final bid data not found. Please go back and complete the pricing step.');
+      setLoading(false);
     }
-
-    // Otherwise poll for it (shouldn't happen in normal flow)
-    if (!threadId) {
-      console.log('No threadId, redirecting to home');
-      navigate('/');
-      return;
-    }
-
-    console.log('Polling for final bid data...');
-    let pollCount = 0;
-    const poll = setInterval(async () => {
-      pollCount++;
-      console.log(`Poll attempt ${pollCount}`);
-      
-      const res = await getWorkflowState(threadId);
-      setState(res.data);
-
-      if (res.data?.final_bid?.text) {
-        console.log('Final bid found via polling');
-        setBidText(res.data.final_bid.text);
-        setBidPath(res.data.final_bid.path);
-        setLoading(false);
-        clearInterval(poll);
-      } else if (pollCount > 30) {
-        // Stop after 60 seconds
-        console.error('Timeout waiting for final bid');
-        clearInterval(poll);
-        setLoading(false);
-      }
-    }, 2000);
-
-    return () => clearInterval(poll);
-  }, [threadId, navigate]); // Removed 'state' and 'setState' from dependencies
+  }, [state]);
 
   if (loading) {
     return (
@@ -67,7 +36,7 @@ export default function FinalBid() {
     );
   }
 
-  if (error) {
+  if (error || !state?.final_bid?.text) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center px-4">
         <div className="card p-8 max-w-md w-full">
@@ -75,7 +44,13 @@ export default function FinalBid() {
             <AlertCircle size={24} className="text-red-400 shrink-0 mt-1" />
             <div>
               <h2 className="text-xl font-semibold text-red-400 mb-2">Error</h2>
-              <p className="text-slate-400 mb-6">{error}</p>
+              <p className="text-slate-400 mb-6">{error || 'Final bid data not available'}</p>
+              <button
+                onClick={() => navigate("/pricing")}
+                className="btn-secondary w-full mb-2"
+              >
+                Back to Pricing
+              </button>
               <button
                 onClick={() => navigate("/")}
                 className="btn-secondary w-full"
@@ -88,6 +63,9 @@ export default function FinalBid() {
       </div>
     );
   }
+
+  const bidText = state.final_bid.text;
+  const bidPath = state.final_bid.path;
 
   return (
     <div className="min-h-screen gradient-bg py-8">
@@ -115,7 +93,7 @@ export default function FinalBid() {
         {/* Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <a 
-            href="http://localhost:8000/files/output/final_bid.txt" 
+            href={`http://localhost:8000${bidPath || '/files/output/final_bid.txt'}`}
             download="final_bid.txt"
             className="btn-primary flex items-center justify-center gap-2 group"
           >
@@ -157,20 +135,6 @@ export default function FinalBid() {
           Back to Home
         </button>
       </div>
-
-      {bidPath && (
-        <a
-          href={`http://localhost:8000${bidPath}`}
-          download
-          className="btn-primary w-full mb-4 flex items-center justify-center gap-2"
-        >
-          <Download /> Download Final Bid
-        </a>
-      )}
-
-      <button onClick={() => navigate("/")} className="btn-secondary w-full">
-        <Home /> Back to Home
-      </button>
     </div>
   );
 }

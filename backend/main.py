@@ -535,6 +535,11 @@ async def select_file_for_pricing(thread_id: str, file_index: int = 0):
     final_snapshot = graph.get_state(config)
     final_state = final_snapshot.values
     
+    # DEBUG: Print what's in final_state
+    print(f"🔍 DEBUG - Final state keys: {final_state.keys()}")
+    print(f"🔍 DEBUG - final_bid in state: {final_state.get('final_bid')}")
+    print(f"🔍 DEBUG - total_cost in state: {final_state.get('total_cost')}")
+    
     pricing_result = {
         "file_index": file_index,
         "file_path": file_path,

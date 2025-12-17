@@ -2,7 +2,7 @@ FINAL COMMERCIAL BID
 ===================
 
 RFP TITLE:
-56b4efa2-bd17-4560-9ec7-d1832469c50b RFP2 MegaBuild Township
+15bfa0bf-e61a-48e3-a6de-7965abdbf3a2 RFP3 GlobalPack Plant3
 
 TECHNICAL SUMMARY:
 SCOPE SUMMARY
@@ -13,7 +13,7 @@ Fire Rating: Standard
 Extractions Found: 1
 
 TOTAL QUOTED PRICE:
-₹ 49,918,000.00
+₹ 27,945,500.00
 
 VALIDITY:
 90 Days
