@@ -363,12 +363,48 @@ RFP Document:
         print("Step 5: Selecting best OEM products...")
         selected_products = self.select_best_products(rfp_id)
         
-        print("Processing complete!")
+        print("Step 6: Calculating win probability...")
+        win_probability = self.calculate_win_probability(selected_products, rfp_products)
+        
+        print(f"Processing complete! Win probability: {win_probability}%")
         return {
             'rfp_id': rfp_id,
             'summary': summary,
-            'selected_products': selected_products
+            'selected_products': selected_products,
+            'win_probability': win_probability
         }
+    
+    def calculate_win_probability(self, selected_products: List[Dict], rfp_products: List[Dict]) -> float:
+        """
+        Calculate probability of winning the bid based on:
+        - Percentage of products matched
+        - Average specification match quality
+        - Product availability/stock status
+        """
+        if not rfp_products:
+            return 0.0
+        
+        if not selected_products:
+            return 0.0
+        
+        # Factor 1: Coverage - What % of RFP products do we have matches for?
+        coverage_score = (len(selected_products) / len(rfp_products)) * 40  # Max 40 points
+        
+        # Factor 2: Match Quality - Average spec match percentage
+        total_match = sum(p.get('spec_match_percentage', 0) for p in selected_products)
+        avg_match = total_match / len(selected_products) if selected_products else 0
+        quality_score = (avg_match / 100) * 50  # Max 50 points
+        
+        # Factor 3: Compliance - Are all matches above minimum threshold (70%)?
+        low_matches = sum(1 for p in selected_products if p.get('spec_match_percentage', 0) < 70)
+        compliance_penalty = low_matches * 5  # Lose 5 points per low-quality match
+        compliance_score = max(0, 10 - compliance_penalty)  # Max 10 points
+        
+        # Total probability
+        win_prob = coverage_score + quality_score + compliance_score
+        
+        return round(min(100.0, max(0.0, win_prob)), 1)
+
 
 # --- Technical Agent Node ---
 def technical_agent_node(state: AgentState) -> dict:
@@ -411,9 +447,11 @@ def technical_agent_node(state: AgentState) -> dict:
         
     if result:
         selected_products = result.get("selected_products", [])
+        win_prob = result.get("win_probability", 0.0)
         return {
             "products_matched": selected_products,
-            "messages": [{"role": "assistant", "content": f"Technical Agent selected {len(selected_products)} products."}]
+            "win_probability": win_prob,
+            "messages": [{"role": "assistant", "content": f"Technical Agent selected {len(selected_products)} products. Win probability: {win_prob}%"}]
         }
     
     return {"messages": [{"role": "system", "content": "Technical Agent finished with no result."}]}

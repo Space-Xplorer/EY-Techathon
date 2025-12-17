@@ -339,6 +339,26 @@ async def approve_rfp(thread_id: str, req: ApprovalRequest):
     file_index = final_state.get("file_index", 0)
     file_paths = final_state.get("file_paths", [])
     
+    # Build current file result
+    current_result = {
+        "file_index": file_index,
+        "file_path": final_state.get("file_path"),
+        "technical_review": final_state.get("technical_review"),
+        "review_pdf_path": final_state.get("review_pdf_path"),
+        "products_matched": final_state.get("products_matched"),
+        "total_cost": final_state.get("total_cost"),
+    }
+    
+    # Get existing results or initialize
+    batch_progress = final_state.get("batch_progress", {})
+    if "all_results" not in batch_progress:
+        batch_progress["all_results"] = []
+    
+    # Add current file result
+    batch_progress["all_results"].append(current_result)
+    batch_progress["current_file_index"] = file_index
+    batch_progress["total_files"] = len(file_paths)
+    
     # If there are more files, prepare for next one
     if file_index + 1 < len(file_paths):
         next_index = file_index + 1
@@ -347,7 +367,7 @@ async def approve_rfp(thread_id: str, req: ApprovalRequest):
         print(f"\n🔄 Moving to next file: {next_index + 1}/{len(file_paths)}")
         print(f"Processing: {next_file}")
         
-        # Reset state for next file
+        # Reset state for next file but keep batch_progress
         graph.update_state(config, {
             "file_path": next_file,
             "file_index": next_index,
@@ -357,7 +377,8 @@ async def approve_rfp(thread_id: str, req: ApprovalRequest):
             "technical_review": None,
             "products_matched": None,
             "pricing_data": None,
-            "total_cost": None
+            "total_cost": None,
+            "batch_progress": batch_progress  # Keep tracking results
         })
         
         # Start workflow for next file
@@ -368,15 +389,20 @@ async def approve_rfp(thread_id: str, req: ApprovalRequest):
             "status": "next_file",
             "message": f"File approved. Processing file {next_index + 1} of {len(file_paths)}",
             "files_completed": next_index,
-            "files_total": len(file_paths)
+            "files_total": len(file_paths),
+            "batch_progress": batch_progress
         }
     else:
-        # All files processed
+        # All files processed - update final batch_progress
+        print(f"\n✅ All files complete")
+        graph.update_state(config, {"batch_progress": batch_progress})
+        
         return {
             "status": "all_complete",
             "message": "All RFPs processed and approved",
             "files_completed": len(file_paths),
-            "files_total": len(file_paths)
+            "files_total": len(file_paths),
+            "batch_progress": batch_progress
         }
 
 
@@ -472,6 +498,141 @@ async def trigger_uploaded_workflow(req: UploadTriggerRequest):
         "status": "paused",
         "message": f"Workflow started with {len(req.file_paths)} file(s) and paused for review.",
         "files_processing": len(req.file_paths)
+    }
+
+
+@app.post("/rfp/process-all")
+async def process_all_rfps(req: UploadTriggerRequest):
+    """
+    Process ALL uploaded RFP files automatically without approval gates.
+    Returns technical reviews with win probability for all files.
+    User can then select which file to price.
+    """
+    if not req.file_paths:
+        raise HTTPException(status_code=400, detail="No file paths provided")
+    
+    config = {"configurable": {"thread_id": req.thread_id}}
+    all_reviews = []
+    
+    print(f"\n🚀 Processing ALL {len(req.file_paths)} files automatically (no approval gates)...")
+    
+    for idx, file_path in enumerate(req.file_paths):
+        print(f"\n📄 Processing file {idx + 1}/{len(req.file_paths)}: {os.path.basename(file_path)}")
+        
+        # Process this file through sales_agent → technical_agent (NO pricing yet)
+        file_state = {
+            "file_path": file_path,
+            "file_index": idx,
+            "human_approved": True,  # Auto-approve to skip manual review
+            "is_valid_rfp": True,
+            "messages": []
+        }
+        
+        # Run workflow (will go through sales → technical, then pause before pricing)
+        async for _ in graph.astream(file_state, config=config):
+            pass
+        
+        # Get final state after technical agent
+        snapshot = graph.get_state(config)
+        final_state = snapshot.values
+        
+        # Extract review data
+        review_result = {
+            "file_index": idx,
+            "file_path": file_path,
+            "file_name": os.path.basename(file_path),
+            "technical_review": final_state.get("technical_review"),
+            "review_pdf_path": normalize_review_path(final_state.get("review_pdf_path")),
+            "products_matched": final_state.get("products_matched", []),
+            "win_probability": final_state.get("win_probability", 0.0),
+            "products_count": len(final_state.get("products_matched", []))
+        }
+        
+        all_reviews.append(review_result)
+        print(f"✅ File {idx + 1} processed. Win probability: {review_result['win_probability']}%")
+    
+    # Store all reviews in state for later selection
+    graph.update_state(config, {
+        "batch_progress": {
+            "all_reviews": all_reviews,
+            "total_files": len(req.file_paths),
+            "processing_complete": True
+        }
+    })
+    
+    # Sort by win probability (highest first)
+    all_reviews_sorted = sorted(all_reviews, key=lambda x: x['win_probability'], reverse=True)
+    
+    print(f"\n✅ All {len(req.file_paths)} files processed!")
+    print(f"📊 Best candidate: {all_reviews_sorted[0]['file_name']} ({all_reviews_sorted[0]['win_probability']}%)")
+    
+    return {
+        "status": "all_processed",
+        "message": f"All {len(req.file_paths)} RFPs processed successfully",
+        "reviews": all_reviews_sorted,  # Return sorted by win probability
+        "total_files": len(req.file_paths)
+    }
+
+
+@app.post("/rfp/{thread_id}/select-file")
+async def select_file_for_pricing(thread_id: str, file_index: int = 0):
+    """
+    User has selected a file from the reviews.
+    Now run pricing agent ONLY for this selected file.
+    """
+    config = {"configurable": {"thread_id": thread_id}}
+    
+    # Get batch progress to find the selected file
+    snapshot = graph.get_state(config)
+    current_state = snapshot.values
+    
+    batch_progress = current_state.get("batch_progress", {})
+    all_reviews = batch_progress.get("all_reviews", [])
+    
+    if file_index >= len(all_reviews):
+        raise HTTPException(status_code=400, detail=f"Invalid file_index: {file_index}")
+    
+    selected_review = all_reviews[file_index]
+    file_path = selected_review["file_path"]
+    
+    print(f"\n💰 User selected file {file_index + 1}: {os.path.basename(file_path)}")
+    print(f"   Win probability: {selected_review['win_probability']}%")
+    print(f"   Running pricing agent...")
+    
+    # Update state to process pricing for this specific file
+    graph.update_state(config, {
+        "file_path": file_path,
+        "file_index": file_index,
+        "human_approved": True,  # Approval already given by selection
+        "technical_review": selected_review["technical_review"],
+        "products_matched": selected_review["products_matched"],
+        "win_probability": selected_review["win_probability"]
+    })
+    
+    # Continue workflow to pricing agent
+    async for _ in graph.astream(None, config=config):
+        pass
+    
+    # Get pricing results
+    final_snapshot = graph.get_state(config)
+    final_state = final_snapshot.values
+    
+    pricing_result = {
+        "file_index": file_index,
+        "file_path": file_path,
+        "file_name": os.path.basename(file_path),
+        "win_probability": selected_review["win_probability"],
+        "products_matched": final_state.get("products_matched", []),
+        "pricing_detailed": final_state.get("pricing_detailed"),
+        "total_cost": final_state.get("total_cost", 0.0)
+    }
+    
+    print(f"✅ Pricing complete! Total cost: ₹{pricing_result['total_cost']:,.2f}")
+    
+    return {
+        "status": "pricing_complete",
+        "message": f"Pricing calculated for {os.path.basename(file_path)}",
+        "pricing": pricing_result
     }
 
 

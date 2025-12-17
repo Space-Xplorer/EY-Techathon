@@ -49,10 +49,14 @@ class AgentState(TypedDict, total=False):
     
     # Technical Agent Output
     products_matched: Optional[List[dict]]
+    win_probability: Optional[float]  # Probability of winning the bid (0-100)
     
-    # ✅ Pricing Agent Output (FIX)
-    pricing_detailed: Optional[dict]   # <-- ADD THIS
+    # ✅ Pricing Agent Output
+    pricing_detailed: Optional[dict]
     total_cost: Optional[float]
+    
+    # Batch Processing - Track all results
+    batch_progress: Optional[dict]  # {"current_file_index", "total_files", "all_results": [...]}
     
     # Logic Checks
     is_valid_rfp: bool

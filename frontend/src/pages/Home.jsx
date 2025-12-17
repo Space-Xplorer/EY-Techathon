@@ -14,7 +14,7 @@ export default function Home() {
     setIsProcessing(true);
 
     try {
-      const response = await fetch('http://localhost:8000/rfp/upload/trigger', {
+      const response = await fetch('http://localhost:8000/rfp/process-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -29,7 +29,7 @@ export default function Home() {
         }, 1000);
       }
     } catch (error) {
-      console.error('Failed to trigger workflow:', error);
+      console.error('Failed to process RFPs:', error);
       setIsProcessing(false);
     }
   };
@@ -69,7 +69,7 @@ export default function Home() {
       <nav className="border-b border-slate-800 glass sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg">
+            <div className="p-2 bg-linear-to-r from-blue-500 to-cyan-500 rounded-lg">
               <Sparkles size={24} className="text-white" />
             </div>
             <h1 className="text-2xl font-bold gradient-text">RFP Orchestrator</h1>
@@ -109,9 +109,9 @@ export default function Home() {
           {/* Upload Result Toast */}
           {uploadResult && (
             <div className="max-w-2xl mx-auto mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="card p-6 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-500/30">
+              <div className="card p-6 bg-linear-to-r from-emerald-500/10 to-teal-500/10 border-emerald-500/30">
                 <div className="flex items-center gap-4">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400 flex-shrink-0" />
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400 shrink-0" />
                   <div>
                     <h3 className="font-semibold text-emerald-400">Upload Successful!</h3>
                     <p className="text-sm text-slate-400">{uploadResult.files_uploaded} file(s) queued for processing. Initializing workflow...</p>
@@ -151,7 +151,7 @@ export default function Home() {
               const Icon = feature.icon;
               return (
                 <div key={idx} className="card-interactive group p-8 hover:border-cyan-500/50">
-                  <div className={`inline-flex p-3 rounded-lg bg-gradient-to-r ${feature.color} text-white mb-4 group-hover:scale-110 transition-transform`}>
+                  <div className={`inline-flex p-3 rounded-lg bg-linear-to-r ${feature.color} text-white mb-4 group-hover:scale-110 transition-transform`}>
                     <Icon size={24} />
                   </div>
                   <h4 className="text-xl font-semibold mb-3">{feature.title}</h4>

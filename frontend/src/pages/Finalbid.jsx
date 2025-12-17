@@ -59,7 +59,7 @@ export default function FinalBid() {
       <div className="min-h-screen gradient-bg flex items-center justify-center px-4">
         <div className="card p-8 max-w-md w-full">
           <div className="flex items-start gap-4">
-            <AlertCircle size={24} className="text-red-400 flex-shrink-0 mt-1" />
+            <AlertCircle size={24} className="text-red-400 shrink-0 mt-1" />
             <div>
               <h2 className="text-xl font-semibold text-red-400 mb-2">Error</h2>
               <p className="text-slate-400 mb-6">{error}</p>
@@ -82,7 +82,7 @@ export default function FinalBid() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+            <div className="p-2 bg-linear-to-r from-purple-500 to-pink-500 rounded-lg">
               <FileText size={24} className="text-white" />
             </div>
             <h1 className="text-4xl font-bold">Final Bid Document</h1>
@@ -92,7 +92,7 @@ export default function FinalBid() {
 
         {/* Document Viewer */}
         <div className="card mb-8 overflow-hidden">
-          <div className="bg-slate-800 p-8 max-h-[600px] overflow-auto">
+          <div className="bg-slate-800 p-8 max-h-150 overflow-auto">
             <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-200">
               {bidText}
             </pre>
@@ -120,7 +120,7 @@ export default function FinalBid() {
         </div>
 
         {/* Navigation */}
-        <div className="card p-6 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-blue-500/30 mb-8">
+        <div className="card p-6 bg-linear-to-r from-blue-500/10 to-cyan-500/10 border-blue-500/30 mb-8">
           <p className="text-slate-300 mb-4">What's next?</p>
           <ul className="space-y-2 text-sm text-slate-400 mb-4">
             <li className="flex items-center gap-2">

@@ -5,40 +5,52 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, TrendingUp, DollarSign, ArrowRight } from "lucide-react";
 
 export default function Pricing() {
-  const { threadId, state, setState } = useRfpStore();
+  const { threadId, state, setState, selectedFileIndex } = useRfpStore();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [pricingData, setPricingData] = useState(null);
 
   useEffect(() => {
-    setIsLoading(true);
-    const poll = setInterval(async () => {
-      if (!threadId) return;
-
-      const res = await getWorkflowState(threadId);
-      setState(res.data);
-
-      if (res.data?.pricing_detailed) {
-        setIsLoading(false);
-        clearInterval(poll);
+    const triggerPricing = async () => {
+      if (!threadId || selectedFileIndex === null) {
+        navigate('/file-selection');
+        return;
       }
-    }, 2000);
 
-    return () => clearInterval(poll);
-  }, [threadId]);
+      try {
+        setIsLoading(true);
+        
+        // Call backend to run pricing agent for selected file
+        const response = await fetch(
+          `http://localhost:8000/rfp/${threadId}/select-file?file_index=${selectedFileIndex}`,
+          { method: 'POST' }
+        );
+        
+        if (!response.ok) throw new Error('Failed to get pricing');
+        
+        const result = await response.json();
+        setPricingData(result.pricing);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error getting pricing:', error);
+        setIsLoading(false);
+      }
+    };
 
-  if (isLoading || !state?.pricing_detailed) {
+    triggerPricing();
+  }, [threadId, selectedFileIndex, navigate]);
+
+  if (isLoading || !pricingData?.total_cost) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="card p-12 text-center">
           <Loader2 className="animate-spin text-cyan-400 mx-auto mb-4" size={32} />
           <h2 className="text-xl font-semibold">Calculating pricing...</h2>
-          <p className="text-slate-400 mt-2">Analyzing product specifications and market rates</p>
+          <p className="text-slate-400 mt-2">Running pricing agent for selected RFP</p>
         </div>
       </div>
     );
   }
-
-  const s = state.pricing_detailed.summary;
 
   const formatCurrency = (value) => {
     if (value === undefined || value === null || isNaN(value)) return '0.00';
@@ -48,11 +60,18 @@ export default function Pricing() {
     });
   };
 
+  // Calculate pricing breakdown
+  const totalCost = pricingData?.total_cost || 0;
+  const subtotal = totalCost / 1.1; // Assuming 10% contingency
+  const contingency = totalCost - subtotal;
+  const materialCost = subtotal * 0.85; // Estimate
+  const testingCost = subtotal * 0.15;
+
   const pricingItems = [
-    { label: 'Total Material', value: s.total_material_cost_inr, icon: '📦' },
-    { label: 'Total Testing', value: s.total_testing_cost_inr, icon: '🧪' },
-    { label: 'Subtotal', value: s.subtotal_inr, icon: '📋', highlight: true },
-    { label: 'Contingency (10%)', value: s.contingency_10pct_inr, icon: '⚠️', highlight: true },
+    { label: 'Total Material', value: materialCost, icon: '📦' },
+    { label: 'Total Testing', value: testingCost, icon: '🧪' },
+    { label: 'Subtotal', value: subtotal, icon: '📋', highlight: true },
+    { label: 'Contingency (10%)', value: contingency, icon: '⚠️', highlight: true },
   ];
 
   return (
@@ -61,10 +80,22 @@ export default function Pricing() {
         {/* Header */}
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg">
+            <div className="p-2 bg-linear-to-r from-amber-500 to-orange-500 rounded-lg">
               <TrendingUp size={24} className="text-white" />
             </div>
-            <h1 className="text-4xl font-bold">Pricing Summary</h1>
+            <div>
+              <h1 className="text-4xl font-bold">Pricing Summary</h1>
+              {pricingData?.file_name && (
+                <p className="text-sm text-cyan-400 mt-2 flex items-center gap-2">
+                  📄 {pricingData.file_name} 
+                  {pricingData?.win_probability && (
+                    <span className="text-emerald-400 font-semibold ml-2">
+                      • Win Probability: {pricingData.win_probability}%
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
           </div>
           <p className="text-slate-400 text-lg">Detailed cost breakdown for your RFP response</p>
         </div>
@@ -75,7 +106,7 @@ export default function Pricing() {
             <div 
               key={idx} 
               className={`card p-6 flex items-center justify-between ${
-                item.highlight ? 'bg-gradient-to-r from-slate-800 to-slate-900 border-cyan-500/30' : ''
+                item.highlight ? 'bg-linear-to-r from-slate-800 to-slate-900 border-cyan-500/30' : ''
               }`}
             >
               <div className="flex items-center gap-4">
@@ -92,12 +123,12 @@ export default function Pricing() {
         </div>
 
         {/* Grand Total */}
-        <div className="card p-8 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-500/30 mb-8">
+        <div className="card p-8 bg-linear-to-r from-emerald-500/10 to-teal-500/10 border-emerald-500/30 mb-8">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-slate-400 mb-2">Grand Total</p>
               <p className="text-5xl font-bold text-emerald-400">
-                ₹{formatCurrency(s.grand_total_inr)}
+                ₹{formatCurrency(totalCost)}
               </p>
             </div>
             <DollarSign size={64} className="text-emerald-400/30" />
@@ -105,19 +136,21 @@ export default function Pricing() {
         </div>
 
         {/* Quick Stats */}
-        {state.pricing_detailed.products_and_costs && (
+        {pricingData?.products_matched && pricingData.products_matched.length > 0 && (
           <div className="card p-6 mb-8">
-            <h3 className="text-lg font-semibold mb-4">Cost Breakdown by Category</h3>
+            <h3 className="text-lg font-semibold mb-4">Products Matched ({pricingData.products_matched.length})</h3>
             <div className="space-y-2">
-              {state.pricing_detailed.products_and_costs.slice(0, 5).map((item, idx) => (
+              {pricingData.products_matched.slice(0, 5).map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-                  <span className="text-slate-300">{item.sku || 'Product'}</span>
-                  <span className="font-semibold text-cyan-400">₹{formatCurrency(item.total_cost_inr || 0)}</span>
+                  <span className="text-slate-300">{item.oem_product_name || item.product || 'Product'}</span>
+                  <span className="font-semibold text-cyan-400">
+                    {item.spec_match_percentage}%
+                  </span>
                 </div>
               ))}
-              {state.pricing_detailed.products_and_costs.length > 5 && (
+              {pricingData.products_matched.length > 5 && (
                 <p className="text-sm text-slate-400 pt-2">
-                  +{state.pricing_detailed.products_and_costs.length - 5} more items
+                  +{pricingData.products_matched.length - 5} more items
                 </p>
               )}
             </div>
@@ -133,10 +166,10 @@ export default function Pricing() {
             View Final Bid <ArrowRight size={20} />
           </button>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/file-selection")}
             className="btn-secondary flex-1"
           >
-            Back to Home
+            Back to File Selection
           </button>
         </div>
       </div>

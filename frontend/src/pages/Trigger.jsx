@@ -17,21 +17,23 @@ export default function Trigger() {
     if (threadId) {
       setThreadId(threadId);
       setStatus('processing');
-      setStatusMessage('Workflow started. Sales agent analyzing RFP...');
+      setStatusMessage('Processing all RFPs automatically. This may take a few minutes...');
       
       const pollInterval = setInterval(async () => {
         try {
           const response = await fetch(`http://localhost:8000/rfp/${threadId}/state`);
           const state = await response.json();
           
-          if (state.review_pdf_path && !state.human_approved) {
+          // Check if processing is complete
+          const batchProgress = state.batch_progress || {};
+          if (batchProgress.processing_complete) {
             clearInterval(pollInterval);
             setStatus('ready');
-            setStatusMessage('Analysis complete! Ready for review.');
+            setStatusMessage('All RFPs processed! Redirecting to selection...');
             setProgress({ current: 3, total: 5 });
             
             setTimeout(() => {
-              navigate('/review');
+              navigate('/file-selection');
             }, 1500);
           }
         } catch (error) {
@@ -95,7 +97,7 @@ export default function Trigger() {
               </div>
               <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-500"
+                  className="h-full bg-linear-to-r from-blue-500 to-cyan-500 transition-all duration-500"
                   style={{ width: `${(progress.current / progress.total) * 100}%` }}
                 />
               </div>
@@ -120,7 +122,7 @@ export default function Trigger() {
           {status === 'processing' && (
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 text-sm text-blue-300">
               <div className="flex gap-2">
-                <Zap size={20} className="flex-shrink-0" />
+                <Zap size={20} className="shrink-0" />
                 <p>This may take a few minutes depending on document complexity. Please don't close this window.</p>
               </div>
             </div>

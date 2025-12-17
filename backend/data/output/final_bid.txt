@@ -2,12 +2,12 @@
 ==================================================
               ASIAN PAINTS - FINAL BID
 ==================================================
-Project: b46ec361-ab23-4953-a642-4bb7c23acb48 RFP1 Govt PWD Amaravati
+Project: d14dc480-d0a2-4655-a358-901381afd57c RFP1 Govt PWD Amaravati
 
 Based on our technical review and product selection:
 
 Technical Compliance:
-- Summary: b46ec361-ab23-4953-a642-4bb7c23acb48 RFP1 Govt PWD Amaravati
+- Summary: d14dc480-d0a2-4655-a358-901381afd57c RFP1 Govt PWD Amaravati
 - Extracted Specs: 1 items analyzed
 
 Commercial Offer:

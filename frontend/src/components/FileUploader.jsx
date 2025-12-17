@@ -111,7 +111,7 @@ const FileUploader = ({ onFilesUploaded }) => {
       {/* Upload Error Alert */}
       {uploadError && (
         <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-3 text-red-400 animate-in fade-in slide-in-from-top-2">
-          <AlertCircle size={20} className="flex-shrink-0" />
+          <AlertCircle size={20} className="shrink-0" />
           <span className="text-sm">{uploadError}</span>
         </div>
       )}
