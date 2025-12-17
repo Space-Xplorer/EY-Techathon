@@ -42,8 +42,8 @@ export default function Review() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           decision: "approve",
-          rfp_index: index
-        })
+          rfp_index: index,
+        }),
       });
 
       navigate("/pricing");
@@ -60,40 +60,57 @@ export default function Review() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {state.rfp_results.map((rfp, idx) => (
           <div key={idx} className="card p-6">
-            <p className="text-slate-400 mb-2">{rfp.file_path?.split("/").pop()}</p>
+            {/* File name */}
+            <p className="text-slate-400 mb-2">
+              {rfp.file_path?.split("/").pop()}
+            </p>
 
-            <div className="mb-4">
-                {rfp.winning_probability != null ? (
-                  <p className="text-xl font-bold text-emerald-400">
-                    {Math.round(rfp.winning_probability * 100)}% Winning Probability
-                  </p>
-                ) : (
-                  <p className="text-sm text-amber-400">
-                    ⏳ {rfp.stage === "technical_matching"
-                      ? "Technical matching in progress"
-                      : "Analyzing RFP"}
-                  </p>
-                )}
-              </div>
+            {/* Bid Viability */}
+            <div className="mb-4 flex items-center gap-2">
+              <TrendingUp size={20} className="text-amber-400" />
+              {rfp.bid_viability_score != null ? (
+                <p className="text-xl font-bold text-amber-400">
+                  {Math.round(rfp.bid_viability_score * 100)}% Bid Viability
+                </p>
+              ) : (
+                <p className="text-sm text-slate-400">
+                  Viability not assessed yet
+                </p>
+              )}
+            </div>
 
+            {/* Status */}
+            <p className="text-sm text-slate-400 mb-3">
+              Status:{" "}
+              <span className="text-slate-300 capitalize">
+                {rfp.stage?.replaceAll("_", " ")}
+              </span>
+            </p>
 
-            <div className="h-64 bg-slate-800 rounded mb-4">
+            {/* PDF Preview */}
+            <div className="h-64 bg-slate-800 rounded mb-4 overflow-hidden">
               {rfp.review_pdf_path ? (
                 <iframe
                   src={`http://localhost:8000${rfp.review_pdf_path}`}
                   className="w-full h-full"
+                  title="RFP Review"
                 />
               ) : (
-                <Eye className="m-auto text-slate-500" />
+                <div className="flex items-center justify-center h-full">
+                  <Eye className="text-slate-500" />
+                </div>
               )}
             </div>
 
+            {/* Action */}
             <button
               disabled={selecting}
               onClick={() => handleSelect(idx)}
               className="btn-success w-full"
             >
-              {selecting && selectedIndex === idx ? "Processing..." : "Approve & Continue"}
+              {selecting && selectedIndex === idx
+                ? "Processing..."
+                : "Approve & Continue"}
             </button>
           </div>
         ))}

@@ -22,12 +22,13 @@ export default function FinalBid() {
         const res = await getWorkflowState(threadId);
         setState(res.data);
 
-        if (res.data?.final_bid?.text) {
-          setBidText(res.data.final_bid.text);
-          setBidPath(res.data.final_bid.path);
+        if (res.data?.workflow_status === "completed") {
+          setBidText(res.data?.final_bid?.text || "No bid generated");
+          setBidPath(res.data?.final_bid?.path || null);
           setLoading(false);
           clearInterval(poll);
         }
+
       }, 2000);
     };
 

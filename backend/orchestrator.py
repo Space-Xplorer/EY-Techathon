@@ -20,37 +20,46 @@ load_dotenv()
 # HELPERS
 # =================================================
 
+import math
+
 def calculate_winning_probability(products):
     if not products:
-        return 0.25
+        return 0.2
 
-    def extract_match(p):
-        return (
-            p.get("spec_match_percentage")
-            or p.get("match_percentage")
-            or p.get("confidence")
-            or 0
-        )
+    avg_match = sum(
+        p.get("spec_match_percentage", 0)
+        or p.get("match_percentage", 0)
+        for p in products
+    ) / len(products)
 
-    avg_match = sum(extract_match(p) for p in products) / len(products)
+    product_coverage = len(products)
 
-    score = 0.3
-    score += min(len(products) * 0.12, 0.3)
-    score += (avg_match / 100) * 0.4
+    # Linear combination
+    raw_score = (
+        -1.2 +                 # base difficulty
+        0.035 * avg_match +    # technical strength
+        0.45 * product_coverage
+    )
 
-    return round(min(score, 0.95), 2)
+    probability = 1 / (1 + math.exp(-raw_score))
+    return round(probability, 2)
+
 
 def estimate_initial_probability(review):
     score = 0.25
 
-    if review.get("scope_of_work"):
-        score += 0.15
-    if review.get("delivery_timeline"):
-        score += 0.1
-    if review.get("technical_requirements"):
-        score += 0.15
+    signals = {
+        "scope": any(review.get(k) for k in ["scope_of_work", "overview", "deliverables"]),
+        "timeline": any(review.get(k) for k in ["delivery_timeline", "submission_deadline"]),
+        "technical": any(review.get(k) for k in ["technical_requirements", "technical_specs"]),
+    }
+
+    score += 0.15 if signals["scope"] else 0
+    score += 0.10 if signals["timeline"] else 0
+    score += 0.15 if signals["technical"] else 0
 
     return round(min(score, 0.55), 2)
+
 
 
 def route_after_sales(state: AgentState) -> str:
@@ -96,13 +105,17 @@ def sales_analysis_node(state: AgentState) -> dict:
         "technical_review": asdict(review_doc),
         "review_pdf_path": review_doc.review_pdf_path,
         "stage": "sales_done",
-        "winning_probability": 0.35
+        "bid_viability_score": estimate_initial_probability(asdict(review_doc)),
+        "winning_probability": None
+
     })
 
     return {
-        "rfp_results": results,
-        "file_index": state.get("file_index", 0) + 1
-    }
+    "rfp_results": results,
+    "file_index": state.get("file_index", 0) + 1,
+    "workflow_status": "running"
+}
+
 
 
 def human_gate_node(state: AgentState) -> dict:
@@ -136,6 +149,36 @@ def technical_node(state: AgentState) -> dict:
     }
 
 
+# def pricing_node(state: AgentState) -> dict:
+#     print("Pricing Agent: Calculating...")
+
+#     index = state["selected_rfp_index"]
+#     products = state["products_matched"]
+
+#     formatted = [{
+#         "rfp_product": p.get("oem_product_name", "Unknown"),
+#         "sku": p.get("sku", ""),
+#         "quantity": p.get("quantity", 0),
+#         "unit": "meter"
+#     } for p in products]
+
+#     agent = PricingAgent()
+#     pricing = agent.process_rfp_pricing(
+#         formatted,
+#         ["routine_test_mv", "acceptance_test"]
+#     )
+
+#     rfp = state["rfp_results"][index]
+#     rfp["pricing_detailed"] = pricing
+#     rfp["total_cost"] = pricing["summary"]["grand_total_inr"]
+#     rfp["stage"] = "pricing_done"
+
+#     return {
+#         "rfp_results": state["rfp_results"],
+#         "pricing_detailed": pricing,
+#         "total_cost": pricing["summary"]["grand_total_inr"]
+#     }
+
 def pricing_node(state: AgentState) -> dict:
     print("Pricing Agent: Calculating...")
 
@@ -156,15 +199,47 @@ def pricing_node(state: AgentState) -> dict:
     )
 
     rfp = state["rfp_results"][index]
+
+    # ----------------------------
+    # Persist pricing
+    # ----------------------------
     rfp["pricing_detailed"] = pricing
     rfp["total_cost"] = pricing["summary"]["grand_total_inr"]
     rfp["stage"] = "pricing_done"
 
+    # ----------------------------
+    # Commercial competitiveness
+    # ----------------------------
+    default_priced_items = [
+        m for m in pricing["material_costs"]
+        if m["unit_price_inr"] == 1000.00
+    ]
+
+    # Simple heuristic (replace later with benchmarks)
+    commercial_score = 1.0
+    commercial_score -= 0.15 * len(default_priced_items)
+
+    commercial_score = max(0.7, min(commercial_score, 1.0))
+
+    rfp["commercial_score"] = round(commercial_score, 2)
+
+    # ----------------------------
+    # Adjust winning probability
+    # ----------------------------
+    if rfp.get("winning_probability") is not None:
+        rfp["winning_probability"] = round(
+            rfp["winning_probability"] * rfp["commercial_score"], 2
+        )
+
     return {
         "rfp_results": state["rfp_results"],
         "pricing_detailed": pricing,
-        "total_cost": pricing["summary"]["grand_total_inr"]
+        "total_cost": rfp["total_cost"],
+        "commercial_score": rfp["commercial_score"],
+        "winning_probability": rfp.get("winning_probability"),
+        "workflow_status": "pricing_done"
     }
+
 
 
 def sales_bid_node(state: AgentState) -> dict:
@@ -173,10 +248,13 @@ def sales_bid_node(state: AgentState) -> dict:
     index = state["selected_rfp_index"]
     agent = SalesAgent()
 
+    rfp = state["rfp_results"][index]
+
     bid_text = agent.generate_final_bid(
-        state["rfp_results"][index]["technical_review"],
-        state["total_cost"]
+        rfp["technical_review"],
+        rfp["total_cost"]
     )
+
 
     output_dir = os.path.join(os.path.dirname(__file__), "data", "output")
     os.makedirs(output_dir, exist_ok=True)
@@ -185,16 +263,19 @@ def sales_bid_node(state: AgentState) -> dict:
     with open(bid_path, "w", encoding="utf-8") as f:
         f.write(bid_text)
 
-    state["rfp_results"][index]["stage"] = "completed"
+    state["final_bid"] = {
+    "text": bid_text,
+    "path": "/files/output/final_bid.txt"
+}
+
+    state["workflow_status"] = "completed"
 
     return {
-        "final_bid": {
-            "text": bid_text,
-            "path": "/files/output/final_bid.txt"
-        },
-        "workflow_status": "completed",
-        "rfp_results": state["rfp_results"]
+        "rfp_results": state["rfp_results"],
+        "final_bid": state["final_bid"],
+        "workflow_status": "completed"
     }
+
 
 
 def finalize_node(state: AgentState) -> dict:
