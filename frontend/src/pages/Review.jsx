@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { getWorkflowState, approveRfp } from "../api/rfpApi";
+import { useEffect, useRef, useState } from "react";
+import { getWorkflowState } from "../api/rfpApi";
 import { useRfpStore } from "../store/rfpStore";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, XCircle, Eye, Loader2 } from "lucide-react";
+import { Eye, Loader2, TrendingUp } from "lucide-react";
 
 export default function Review() {
   const { threadId, state, setState } = useRfpStore();
@@ -21,8 +21,8 @@ export default function Review() {
       }
     }, 2000);
 
-    return () => clearInterval(poll);
-  }, [threadId]);
+    return () => clearInterval(pollRef.current);
+  }, [threadId, setState]);
 
   // Hide loading overlay when review PDF loads
   useEffect(() => {
@@ -37,8 +37,8 @@ export default function Review() {
         <Loader2 className="animate-spin text-cyan-400 mx-auto" size={32} />
         <p className="text-slate-300 mt-4">Loading review data...</p>
       </div>
-    </div>
-  );
+    );
+  }
 
   const handleApproval = async (approved) => {
     setApproving(true);
@@ -112,44 +112,11 @@ export default function Review() {
             <div className="card overflow-hidden h-96 lg:h-150 flex items-center justify-center bg-slate-800">
               {state.review_pdf_path ? (
                 <iframe
-                  src={`http://localhost:8000${state.review_pdf_path}`}
+                  src={`http://localhost:8000${rfp.review_pdf_path}`}
                   className="w-full h-full"
-                  title="Technical Review PDF"
                 />
               ) : (
-                <div className="text-center">
-                  <Eye size={48} className="text-slate-500 mx-auto mb-2" />
-                  <p className="text-slate-400">PDF will appear here</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Sidebar with Details */}
-          <div className="space-y-6">
-            {/* Technical Review Card */}
-            <div className="card p-6">
-              <h3 className="text-lg font-bold mb-4 text-cyan-400">Extracted Data</h3>
-              
-              {state.technical_review ? (
-                <div className="space-y-3 text-sm">
-                  <div className="bg-slate-800 p-3 rounded-lg">
-                    <p className="text-slate-400 mb-1">Technical Specs</p>
-                    <p className="text-slate-200 font-mono text-xs line-clamp-4">
-                      {typeof state.technical_review === 'string' 
-                        ? state.technical_review.substring(0, 200)
-                        : JSON.stringify(state.technical_review).substring(0, 200)}
-                    </p>
-                  </div>
-                  {state.products_matched && (
-                    <div className="bg-slate-800 p-3 rounded-lg">
-                      <p className="text-slate-400 mb-1">Products Found</p>
-                      <p className="text-slate-200 text-xs">{state.products_matched.length} items</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-slate-400 text-sm">Processing technical data...</p>
+                <Eye className="m-auto text-slate-500" />
               )}
             </div>
 
@@ -185,7 +152,7 @@ export default function Review() {
               </p>
             </div>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );

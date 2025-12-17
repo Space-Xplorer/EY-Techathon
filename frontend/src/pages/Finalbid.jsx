@@ -2,50 +2,44 @@ import { useEffect, useState } from "react";
 import { useRfpStore } from "../store/rfpStore";
 import { getWorkflowState } from "../api/rfpApi";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Download, Printer, Home, AlertCircle, FileText } from "lucide-react";
+import { Loader2, Home, FileText, Download } from "lucide-react";
 
 export default function FinalBid() {
   const { threadId, state, setState } = useRfpStore();
   const navigate = useNavigate();
-  const [bidText, setBidText] = useState("");
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [bidText, setBidText] = useState("");
+  const [bidPath, setBidPath] = useState(null);
 
   useEffect(() => {
-    const fetchBid = async () => {
-      if (!threadId) {
-        setError("No thread ID found");
-        setLoading(false);
-        return;
-      }
-      
-      try {
+    let poll;
+
+    const load = async () => {
+      if (!threadId) return;
+
+      poll = setInterval(async () => {
         const res = await getWorkflowState(threadId);
         setState(res.data);
 
-        const response = await fetch("http://localhost:8000/files/output/final_bid.txt");
-        if (response.ok) {
-          const text = await response.text();
-          setBidText(text);
-          setError(null);
-        } else {
-          setError("Bid file not found. Please wait for processing to complete.");
+        if (res.data?.final_bid?.text) {
+          setBidText(res.data.final_bid.text);
+          setBidPath(res.data.final_bid.path);
+          setLoading(false);
+          clearInterval(poll);
         }
-      } catch (err) {
-        console.error("Error fetching bid:", err);
-        setError("Failed to load bid document: " + err.message);
-      } finally {
-        setLoading(false);
-      }
+      }, 2000);
     };
 
-    fetchBid();
-  }, [threadId]);
+    load();
+
+    return () => poll && clearInterval(poll);
+  }, [threadId, setState]);
 
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <div className="card p-12 text-center">
+        <div className="card p-8 text-center">
           <Loader2 className="animate-spin text-cyan-400 mx-auto mb-4" size={32} />
           <h2 className="text-xl font-semibold">Loading final bid...</h2>
           <p className="text-slate-400 mt-2">Compiling all RFP responses</p>
@@ -144,6 +138,20 @@ export default function FinalBid() {
           Back to Home
         </button>
       </div>
+
+      {bidPath && (
+        <a
+          href={`http://localhost:8000${bidPath}`}
+          download
+          className="btn-primary w-full mb-4 flex items-center justify-center gap-2"
+        >
+          <Download /> Download Final Bid
+        </a>
+      )}
+
+      <button onClick={() => navigate("/")} className="btn-secondary w-full">
+        <Home /> Back to Home
+      </button>
     </div>
   );
 }
