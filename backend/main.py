@@ -538,6 +538,7 @@ async def select_file_for_pricing(thread_id: str, file_index: int = 0):
     # DEBUG: Print what's in final_state
     print(f"🔍 DEBUG - Final state keys: {final_state.keys()}")
     print(f"🔍 DEBUG - final_bid in state: {final_state.get('final_bid')}")
+    print(f"🔍 DEBUG - email_draft in state: {final_state.get('email_draft')}")
     print(f"🔍 DEBUG - total_cost in state: {final_state.get('total_cost')}")
     
     pricing_result = {
@@ -548,7 +549,8 @@ async def select_file_for_pricing(thread_id: str, file_index: int = 0):
         "products_matched": final_state.get("products_matched", []),
         "pricing_detailed": final_state.get("pricing_detailed"),
         "total_cost": final_state.get("total_cost", 0.0),
-        "final_bid": final_state.get("final_bid")  # Include final bid data
+        "final_bid": final_state.get("final_bid"),  # Include final bid data
+        "email_draft": final_state.get("email_draft")  # Include email draft
     }
     
     print(f"✅ Pricing complete! Total cost: ₹{pricing_result['total_cost']:,.2f}")
@@ -558,6 +560,72 @@ async def select_file_for_pricing(thread_id: str, file_index: int = 0):
         "message": f"Pricing calculated for {os.path.basename(file_path)}",
         "pricing": pricing_result
     }
+
+
+@app.post("/rfp/{thread_id}/approve-email")
+async def approve_email(thread_id: str, approved: bool = True):
+    """
+    Approve or reject email sending
+    
+    Args:
+        thread_id: Workflow thread ID
+        approved: Whether to send the email (default True)
+    
+    Returns:
+        Email sending result or cancellation message
+    """
+    config = {"configurable": {"thread_id": thread_id}}
+    
+    # Get current state to check if we're at email_gate
+    snapshot = graph.get_state(config)
+    current_state = snapshot.values
+    
+    email_draft = current_state.get("email_draft")
+    if not email_draft:
+        raise HTTPException(status_code=404, detail="No email draft found")
+    
+    print(f"\n📧 User {'approved' if approved else 'rejected'} email")
+    print(f"   To: {email_draft.get('to')}")
+    print(f"   Subject: {email_draft.get('subject')}")
+    
+    if not approved:
+        # User rejected - end workflow
+        return {
+            "status": "email_cancelled",
+            "message": "Email sending cancelled by user"
+        }
+    
+    # User approved - update state and continue
+    graph.update_state(config, {"email_approved": True})
+    
+    # Resume workflow to send email
+    try:
+        async for _ in graph.astream(None, config=config):
+            pass
+    except Exception as e:
+        print(f"❌ Error sending email: {e}")
+        raise HTTPException(status_code=500, detail=f"Email error: {str(e)}")
+    
+    # Get final state with email result
+    final_snapshot = graph.get_state(config)
+    final_state = final_snapshot.values
+    email_sent = final_state.get("email_sent", {})
+    
+    if email_sent.get("success"):
+        print(f"✅ Email sent successfully!")
+        return {
+            "status": "email_sent",
+            "message": "Email sent successfully",
+            "result": email_sent
+        }
+    else:
+        error_msg = email_sent.get("error", "Unknown error")
+        print(f"❌ Email failed: {error_msg}")
+        return {
+            "status": "email_failed",
+            "message": f"Failed to send email: {error_msg}",
+            "result": email_sent
+        }
 
 
 @app.get("/")

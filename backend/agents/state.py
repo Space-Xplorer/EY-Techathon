@@ -27,6 +27,11 @@ class AgentState(TypedDict, total=False):
     # ✅ Sales Agent Output - Final Bid
     final_bid: Optional[dict]  # {"text": str, "path": str}
     
+    # ✅ Email Agent Output
+    email_draft: Optional[dict]  # {"subject": str, "body": str, "to": str, "from": str}
+    email_sent: Optional[dict]  # {"success": bool, "message_id": str, "timestamp": str}
+    email_approved: bool  # Whether user approved sending the email
+    
     # Batch Processing - Track all results
     batch_progress: Optional[dict]  # {"current_file_index", "total_files", "all_results": [...]}
     

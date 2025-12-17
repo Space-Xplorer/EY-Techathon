@@ -13,6 +13,7 @@ from agents.state import AgentState
 from agents.sales_agent import SalesAgent
 from agents.technical_agent import technical_agent_node
 from agents.pricing_agent import PricingAgent
+from agents.email_agent import EmailAgent
 
 load_dotenv()
 
@@ -156,6 +157,84 @@ def sales_bid_node(state: AgentState) -> dict:
     return result
 
 
+def email_draft_node(state: AgentState) -> dict:
+    """Draft email for bid submission"""
+    print("📧 Email Agent: Drafting submission email...")
+    
+    agent = EmailAgent()
+    
+    # Extract RFP title from file path
+    file_path = state.get("file_path", "")
+    rfp_title = os.path.basename(file_path).replace(".pdf", "").replace("_", " ")
+    
+    # Get bid details
+    total_cost = state.get("total_cost", 0.0)
+    win_probability = state.get("win_probability", 0.0)
+    bid_text = state.get("final_bid", {}).get("text", "")
+    
+    # Draft the email
+    email_draft = agent.draft_bid_email(
+        rfp_title=rfp_title,
+        total_cost=total_cost,
+        win_probability=win_probability,
+        bid_text=bid_text,
+        recipient_email=os.getenv("RFP_RECIPIENT_EMAIL", "rfp-submissions@example.com"),
+        sender_name="Team SpaM"
+    )
+    
+    print(f"   ✅ Email drafted: {email_draft['subject']}")
+    
+    return {
+        "email_draft": email_draft,
+        "email_approved": False  # Waiting for user approval
+    }
+
+
+def email_gate_node(state: AgentState) -> dict:
+    """Pause point for email approval"""
+    print("📧 Waiting for email approval...")
+    return {}
+
+
+def email_send_node(state: AgentState) -> dict:
+    """Send the approved email"""
+    print("📧 Email Agent: Sending email...")
+    
+    agent = EmailAgent()
+    email_draft = state.get("email_draft", {})
+    
+    if not email_draft:
+        print("   ⚠️  No email draft found")
+        return {"email_sent": {"success": False, "error": "No email draft"}}
+    
+    # Get attachment path
+    attachment_path = None
+    final_bid = state.get("final_bid", {})
+    if final_bid.get("path"):
+        # Convert web path to filesystem path
+        attachment_path = os.path.join(
+            os.path.dirname(__file__),
+            "data",
+            "output",
+            "final_bid.txt"
+        )
+    
+    # Send email
+    result = agent.send_email(
+        to=email_draft["to"],
+        subject=email_draft["subject"],
+        body=email_draft["body"],
+        attachment_path=attachment_path
+    )
+    
+    if result["success"]:
+        print(f"   ✅ Email sent to {email_draft['to']}")
+    else:
+        print(f"   ❌ Failed to send email: {result.get('error')}")
+    
+    return {"email_sent": result}
+
+
 # =================================================
 # ROUTING
 # =================================================
@@ -164,6 +243,13 @@ def route_after_human_gate(state: AgentState) -> str:
     """Route after human approval to pricing"""
     if state.get("human_approved"):
         return "pricing"
+    return END
+
+
+def route_after_email_gate(state: AgentState) -> str:
+    """Route after email approval to send email"""
+    if state.get("email_approved"):
+        return "email_send"
     return END
 
 
@@ -181,6 +267,9 @@ def create_graph():
     workflow.add_node("human_gate", human_gate_node)
     workflow.add_node("pricing", pricing_node)
     workflow.add_node("bid", sales_bid_node)
+    workflow.add_node("email_draft", email_draft_node)
+    workflow.add_node("email_gate", email_gate_node)
+    workflow.add_node("email_send", email_send_node)
 
     # Define edges - technical runs BEFORE human_gate
     workflow.set_entry_point("loader")
@@ -199,14 +288,26 @@ def create_graph():
     )
     
     workflow.add_edge("pricing", "bid")
-    workflow.add_edge("bid", END)
+    workflow.add_edge("bid", "email_draft")  # After bid, draft email
+    workflow.add_edge("email_draft", "email_gate")  # Then pause for email approval
+    
+    # After email approval, send or end
+    workflow.add_conditional_edges(
+        "email_gate",
+        route_after_email_gate,
+        {
+            "email_send": "email_send",  # If approved, send email
+            END: END  # If not approved, end
+        }
+    )
+    workflow.add_edge("email_send", END)  # After sending, end
 
     print("✅ Using in-memory checkpointing (prototype mode - simple & fast)")
 
-    # Interrupt AFTER technical completes (so we get win_probability), BEFORE pricing
+    # Interrupt at human_gate (for bid approval) and email_gate (for email approval)
     return workflow.compile(
         checkpointer=MemorySaver(),
-        interrupt_before=["human_gate"]  # Pause before human_gate (after technical finishes)
+        interrupt_before=["human_gate", "email_gate"]  # Pause for both approvals
     )
 
 

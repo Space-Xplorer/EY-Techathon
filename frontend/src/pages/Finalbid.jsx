@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRfpStore } from "../store/rfpStore";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Home, FileText, Download, AlertCircle, Printer } from "lucide-react";
+import { Loader2, Home, FileText, Download, AlertCircle, Printer, Mail } from "lucide-react";
 
 export default function FinalBid() {
   const { state } = useRfpStore();
@@ -126,14 +126,24 @@ export default function FinalBid() {
           </ul>
         </div>
 
-        {/* Back Button */}
-        <button
-          onClick={() => navigate("/")}
-          className="btn-secondary w-full flex items-center justify-center gap-2"
-        >
-          <Home size={20} />
-          Back to Home
-        </button>
+        {/* Navigation Buttons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            onClick={() => navigate("/email")}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+          >
+            <Mail size={20} />
+            Draft Email & Send
+          </button>
+          
+          <button
+            onClick={() => navigate("/")}
+            className="btn-secondary w-full flex items-center justify-center gap-2"
+          >
+            <Home size={20} />
+            Back to Home
+          </button>
+        </div>
       </div>
     </div>
   );

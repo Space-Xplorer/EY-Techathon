@@ -67,7 +67,7 @@ export default function Home() {
             <div className="p-2 bg-linear-to-r from-blue-500 to-cyan-500 rounded-lg">
               <Sparkles size={24} className="text-white" />
             </div>
-            <h1 className="text-2xl font-bold gradient-text">RFP Orchestrator</h1>
+            <h1 className="text-2xl font-bold gradient-text">Team SpaM</h1>
           </div>
           <span className="text-sm text-slate-400">v1.0 - Beta</span>
         </div>
