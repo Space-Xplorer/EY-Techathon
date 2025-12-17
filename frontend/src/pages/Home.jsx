@@ -13,25 +13,20 @@ export default function Home() {
     setUploadResult(data);
     setIsProcessing(true);
 
-    try {
-      const response = await fetch('http://localhost:8000/rfp/process-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          thread_id: data.thread_id,
-          file_paths: data.file_paths
-        })
-      });
+    // Navigate to Trigger page immediately to show progress
+    navigate(`/trigger?thread_id=${data.thread_id}`);
 
-      if (response.ok) {
-        setTimeout(() => {
-          navigate(`/trigger?thread_id=${data.thread_id}`);
-        }, 1000);
-      }
-    } catch (error) {
+    // Start processing in background (don't await)
+    fetch('http://localhost:8000/rfp/process-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        thread_id: data.thread_id,
+        file_paths: data.file_paths
+      })
+    }).catch(error => {
       console.error('Failed to process RFPs:', error);
-      setIsProcessing(false);
-    }
+    });
   };
 
   const features = [
@@ -179,7 +174,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8 mt-20">
         <div className="max-w-7xl mx-auto px-6 text-center text-slate-400 text-sm">
-          <p>© 2024 RFP Orchestrator. Powered by LangGraph & Groq API.</p>
+          <p>© 2025 Team SpaM. Powered by LangGraph & Groq API.</p>
         </div>
       </footer>
     </div>

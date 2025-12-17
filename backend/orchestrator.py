@@ -11,67 +11,31 @@ from langgraph.checkpoint.memory import MemorySaver
 # Agents
 from agents.state import AgentState
 from agents.sales_agent import SalesAgent
-from agents.technical_agent import TechnicalAgent
+from agents.technical_agent import technical_agent_node
 from agents.pricing_agent import PricingAgent
 
 load_dotenv()
 
-# =================================================
-# HELPERS
-# =================================================
+# Initialize pricing agent once (singleton pattern)
+_pricing_agent = None
 
-def calculate_winning_probability(products):
-    if not products:
-        return 0.25
-
-    def extract_match(p):
-        return (
-            p.get("spec_match_percentage")
-            or p.get("match_percentage")
-            or p.get("confidence")
-            or 0
-        )
-
-    avg_match = sum(extract_match(p) for p in products) / len(products)
-
-    score = 0.3
-    score += min(len(products) * 0.12, 0.3)
-    score += (avg_match / 100) * 0.4
-
-    return round(min(score, 0.95), 2)
-
-def estimate_initial_probability(review):
-    score = 0.25
-
-    if review.get("scope_of_work"):
-        score += 0.15
-    if review.get("delivery_timeline"):
-        score += 0.1
-    if review.get("technical_requirements"):
-        score += 0.15
-
-    return round(min(score, 0.55), 2)
-
-
-def route_after_sales(state: AgentState) -> str:
-    if state.get("file_index", 0) >= len(state.get("file_paths", [])):
-        print("📌 All RFPs analyzed. Entering human gate.")
-        return "human_gate"
-    return "loader"
-
+def get_pricing_agent():
+    global _pricing_agent
+    if _pricing_agent is None:
+        product_db = os.path.join(os.path.dirname(__file__), "data", "product_pricing.csv")
+        test_db = os.path.join(os.path.dirname(__file__), "data", "test_pricing.csv")
+        _pricing_agent = PricingAgent(product_pricing_db=product_db, test_pricing_db=test_db)
+    return _pricing_agent
 
 # =================================================
 # NODES
 # =================================================
 
 def load_pdf_node(state: AgentState) -> dict:
-    index = state.get("file_index", 0)
-    file_paths = state.get("file_paths", [])
-
-    if index >= len(file_paths):
+    """Load PDF and extract text"""
+    file_path = state.get("file_path")
+    if not file_path:
         return {}
-
-    file_path = file_paths[index]
 
     reader = PdfReader(file_path)
     text = "".join((p.extract_text() or "") for p in reader.pages)
@@ -79,103 +43,97 @@ def load_pdf_node(state: AgentState) -> dict:
     print(f"Loader: Loaded {file_path}")
 
     return {
-        "file_path": file_path,
         "raw_text": text,
     }
 
 
 def sales_analysis_node(state: AgentState) -> dict:
+    """Generate technical review PDF"""
     print("Sales Agent: Analyzing RFP...")
 
     agent = SalesAgent()
     review_doc = agent.process_local_file(state["file_path"])
 
-    results = state.get("rfp_results", [])
-    results.append({
-        "file_path": state["file_path"],
+    return {
         "technical_review": asdict(review_doc),
         "review_pdf_path": review_doc.review_pdf_path,
-        "stage": "sales_done",
-        "winning_probability": 0.35
-    })
-
-    return {
-        "rfp_results": results,
-        "file_index": state.get("file_index", 0) + 1
     }
 
 
 def human_gate_node(state: AgentState) -> dict:
-    print("⏸ Waiting for human selection...")
+    """Pause point for human approval"""
+    print("Orchestrator: Waiting for Human Approval...")
     return {}
 
 
-def technical_node(state: AgentState) -> dict:
-    print("Technical Agent: Matching specs...")
-
-    index = state["selected_rfp_index"]
-    rfp = state["rfp_results"][index]
-    rfp["stage"] = "technical_matching"
-
-    agent = TechnicalAgent(
-        os.getenv("SUPABASE_URL"),
-        os.getenv("SUPABASE_KEY"),
-        os.getenv("GROQ_API_KEY"),
-    )
-
-    result = agent.process_rfp(str(uuid.uuid4()), rfp["file_path"])
-    products = result.get("selected_products", [])
-
-    rfp["products_matched"] = products
-    rfp["winning_probability"] = calculate_winning_probability(products)
-    rfp["stage"] = "ready_for_review"
-
-    return {
-        "rfp_results": state["rfp_results"],
-        "products_matched": products,
-    }
-
-
 def pricing_node(state: AgentState) -> dict:
-    print("Pricing Agent: Calculating...")
+    """Calculate pricing for matched products"""
+    print("💰 Pricing Agent: Calculating costs...")
 
-    index = state["selected_rfp_index"]
-    products = state["products_matched"]
+    products = state.get("products_matched", [])
+    
+    print(f"   Products to price: {len(products)}")
+    
+    if not products or len(products) == 0:
+        print("   ⚠️  No products matched, returning 0 cost")
+        return {
+            "pricing_detailed": {},
+            "total_cost": 0.0
+        }
 
-    formatted = [{
-        "rfp_product": p.get("oem_product_name", "Unknown"),
-        "sku": p.get("sku", ""),
-        "quantity": p.get("quantity", 0),
-        "unit": "meter"
-    } for p in products]
+    # Format products for pricing agent
+    formatted = []
+    for p in products:
+        # Handle both dict and object types
+        if isinstance(p, dict):
+            oem_name = p.get("oem_product_name") or p.get("product_name", "Unknown")
+            sku = p.get("sku", "")
+            qty = p.get("quantity", 1000)  # Default to 1000 meters if not specified
+            unit_price = p.get("unit_price", 0)
+        else:
+            oem_name = getattr(p, "oem_product_name", "Unknown")
+            sku = getattr(p, "sku", "")
+            qty = getattr(p, "quantity", 1000)
+            unit_price = getattr(p, "unit_price", 0)
+        
+        # Ensure quantity is reasonable
+        if not qty or qty == 0:
+            qty = 1000  # Default to 1000 meters
+        
+        formatted.append({
+            "rfp_product": oem_name,
+            "sku": sku,
+            "quantity": int(qty),
+            "unit": "meter"
+        })
+        print(f"   ✓ {oem_name}")
+        print(f"      SKU: {sku}, Qty: {qty}m, Unit Price: ₹{unit_price}")
 
-    agent = PricingAgent()
+    # Use singleton pricing agent (avoids reloading CSVs)
+    agent = get_pricing_agent()
     pricing = agent.process_rfp_pricing(
         formatted,
         ["routine_test_mv", "acceptance_test"]
     )
 
-    rfp = state["rfp_results"][index]
-    rfp["pricing_detailed"] = pricing
-    rfp["total_cost"] = pricing["summary"]["grand_total_inr"]
-    rfp["stage"] = "pricing_done"
+    grand_total = pricing.get("summary", {}).get("grand_total_inr", 0.0)
+    print(f"   💵 Total Cost: ₹{grand_total:,.2f}")
 
     return {
-        "rfp_results": state["rfp_results"],
         "pricing_detailed": pricing,
-        "total_cost": pricing["summary"]["grand_total_inr"]
+        "total_cost": grand_total
     }
 
 
 def sales_bid_node(state: AgentState) -> dict:
+    """Generate final bid document"""
     print("Sales Agent: Generating final bid...")
 
-    index = state["selected_rfp_index"]
     agent = SalesAgent()
 
     bid_text = agent.generate_final_bid(
-        state["rfp_results"][index]["technical_review"],
-        state["total_cost"]
+        state.get("technical_review", {}),
+        state.get("total_cost", 0)
     )
 
     output_dir = os.path.join(os.path.dirname(__file__), "data", "output")
@@ -185,24 +143,23 @@ def sales_bid_node(state: AgentState) -> dict:
     with open(bid_path, "w", encoding="utf-8") as f:
         f.write(bid_text)
 
-    state["rfp_results"][index]["stage"] = "completed"
-
     return {
         "final_bid": {
             "text": bid_text,
             "path": "/files/output/final_bid.txt"
-        },
-        "workflow_status": "completed",
-        "rfp_results": state["rfp_results"]
+        }
     }
 
 
-def finalize_node(state: AgentState) -> dict:
-    return {
-        "rfp_results": state["rfp_results"],
-        "final_bid": state.get("final_bid"),
-        "workflow_status": state.get("workflow_status", "completed")
-    }
+# =================================================
+# ROUTING
+# =================================================
+
+def route_after_human_gate(state: AgentState) -> str:
+    """Route after human approval to pricing"""
+    if state.get("human_approved"):
+        return "pricing"
+    return END
 
 
 # =================================================
@@ -212,37 +169,39 @@ def finalize_node(state: AgentState) -> dict:
 def create_graph():
     workflow = StateGraph(AgentState)
 
+    # Add nodes
     workflow.add_node("loader", load_pdf_node)
     workflow.add_node("sales", sales_analysis_node)
+    workflow.add_node("technical", technical_agent_node)
     workflow.add_node("human_gate", human_gate_node)
-    workflow.add_node("technical", technical_node)
     workflow.add_node("pricing", pricing_node)
     workflow.add_node("bid", sales_bid_node)
-    workflow.add_node("finalize", finalize_node)
 
+    # Define edges - technical runs BEFORE human_gate
     workflow.set_entry_point("loader")
-
     workflow.add_edge("loader", "sales")
+    workflow.add_edge("sales", "technical")
+    workflow.add_edge("technical", "human_gate")  # Technical completes, THEN pause
+    
+    # After human approval, go to pricing
     workflow.add_conditional_edges(
-        "sales",
-        route_after_sales,
+        "human_gate",
+        route_after_human_gate,
         {
-            "loader": "loader",
-            "human_gate": "human_gate"
+            "pricing": "pricing",  # If approved, continue to pricing
+            END: END  # If not approved, end
         }
     )
-
-    workflow.add_edge("human_gate", "technical")
-    workflow.add_edge("technical", "pricing")
+    
     workflow.add_edge("pricing", "bid")
-    workflow.add_edge("bid", "finalize")
-    workflow.add_edge("finalize", END)
+    workflow.add_edge("bid", END)
 
-    print("✅ Using in-memory checkpointing")
+    print("✅ Using in-memory checkpointing (prototype mode - simple & fast)")
 
+    # Interrupt AFTER technical completes (so we get win_probability), BEFORE pricing
     return workflow.compile(
         checkpointer=MemorySaver(),
-        interrupt_after=["human_gate"]
+        interrupt_before=["human_gate"]  # Pause before human_gate (after technical finishes)
     )
 
 
@@ -254,9 +213,8 @@ async def main():
     graph = create_graph()
     async for _ in graph.astream(
         {
-            "file_paths": [],
-            "file_index": 0,
-            "rfp_results": []
+            "file_path": None,
+            "human_approved": False
         },
         config={"configurable": {"thread_id": "cli"}}
     ):

@@ -13,28 +13,47 @@ export default function FinalBid() {
   const [bidPath, setBidPath] = useState(null);
 
   useEffect(() => {
-    let poll;
+    // Check if final_bid data is already in state
+    if (state?.final_bid?.text) {
+      console.log('Final bid found in state');
+      setBidText(state.final_bid.text);
+      setBidPath(state.final_bid.path);
+      setLoading(false);
+      return;
+    }
 
-    const load = async () => {
-      if (!threadId) return;
+    // Otherwise poll for it (shouldn't happen in normal flow)
+    if (!threadId) {
+      console.log('No threadId, redirecting to home');
+      navigate('/');
+      return;
+    }
 
-      poll = setInterval(async () => {
-        const res = await getWorkflowState(threadId);
-        setState(res.data);
+    console.log('Polling for final bid data...');
+    let pollCount = 0;
+    const poll = setInterval(async () => {
+      pollCount++;
+      console.log(`Poll attempt ${pollCount}`);
+      
+      const res = await getWorkflowState(threadId);
+      setState(res.data);
 
-        if (res.data?.final_bid?.text) {
-          setBidText(res.data.final_bid.text);
-          setBidPath(res.data.final_bid.path);
-          setLoading(false);
-          clearInterval(poll);
-        }
-      }, 2000);
-    };
+      if (res.data?.final_bid?.text) {
+        console.log('Final bid found via polling');
+        setBidText(res.data.final_bid.text);
+        setBidPath(res.data.final_bid.path);
+        setLoading(false);
+        clearInterval(poll);
+      } else if (pollCount > 30) {
+        // Stop after 60 seconds
+        console.error('Timeout waiting for final bid');
+        clearInterval(poll);
+        setLoading(false);
+      }
+    }, 2000);
 
-    load();
-
-    return () => poll && clearInterval(poll);
-  }, [threadId, setState]);
+    return () => clearInterval(poll);
+  }, [threadId, navigate]); // Removed 'state' and 'setState' from dependencies
 
   if (loading) {
     return (

@@ -1,20 +1,28 @@
+FINAL COMMERCIAL BID
+===================
 
-==================================================
-              ASIAN PAINTS - FINAL BID
-==================================================
-Project: d14dc480-d0a2-4655-a358-901381afd57c RFP1 Govt PWD Amaravati
+RFP TITLE:
+56b4efa2-bd17-4560-9ec7-d1832469c50b RFP2 MegaBuild Township
 
-Based on our technical review and product selection:
+TECHNICAL SUMMARY:
+SCOPE SUMMARY
+-------------
+Size: None
+Voltage: 1.1 kV (Page 1)
+Fire Rating: Standard
+Extractions Found: 1
 
-Technical Compliance:
-- Summary: d14dc480-d0a2-4655-a358-901381afd57c RFP1 Govt PWD Amaravati
-- Extracted Specs: 1 items analyzed
+TOTAL QUOTED PRICE:
+₹ 49,918,000.00
 
-Commercial Offer:
---------------------------------------------------
-TOTAL QUOTE VALUE: INR 21,488,500.00
---------------------------------------------------
+VALIDITY:
+90 Days
 
-This bid is valid for 30 days.
-Authorized Signatory: Sales Agent
-==================================================
+DELIVERY:
+As per RFP terms
+
+PAYMENT TERMS:
+Standard OEM terms
+
+---
+System generated. Subject to management approval.

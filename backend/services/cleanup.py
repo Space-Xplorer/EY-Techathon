@@ -6,7 +6,6 @@ Automated cleanup of old data to prevent unbounded growth
 import os
 from datetime import datetime, timedelta
 from supabase import create_client
-import asyncpg
 import logging
 from typing import Dict
 
@@ -80,7 +79,10 @@ class DatabaseCleanup:
         
         cutoff = datetime.now() - timedelta(days=days)
         
+        # Checkpoint cleanup - requires asyncpg
+        # Install with: pip install asyncpg
         try:
+            import asyncpg
             conn = await asyncpg.connect(self.checkpoint_db_uri)
             result = await conn.execute(
                 "DELETE FROM checkpoints WHERE created_at < $1",
@@ -90,6 +92,9 @@ class DatabaseCleanup:
             
             logger.info(f"Deleted checkpoints older than {days} days: {result}")
             return result
+        except ImportError:
+            logger.warning("asyncpg not installed, skipping checkpoint cleanup")
+            return "skipped"
         except Exception as e:
             logger.error(f"Error cleaning checkpoints: {e}")
             return "error"

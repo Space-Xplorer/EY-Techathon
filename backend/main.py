@@ -433,32 +433,34 @@ async def process_all_rfps(req: UploadTriggerRequest):
     if not req.file_paths:
         raise HTTPException(status_code=400, detail="No file paths provided")
     
-    config = {"configurable": {"thread_id": req.thread_id}}
     all_reviews = []
     
     print(f"\n🚀 Processing ALL {len(req.file_paths)} files automatically (no approval gates)...")
     
     for idx, file_path in enumerate(req.file_paths):
+        # Use unique thread_id for each file to avoid state corruption
+        file_thread_id = f"{req.thread_id}_file_{idx}"
+        config = {"configurable": {"thread_id": file_thread_id}}
+        
         print(f"\n📄 Processing file {idx + 1}/{len(req.file_paths)}: {os.path.basename(file_path)}")
         
-        # Process this file through sales_agent → technical_agent (NO pricing yet)
+        # Process this file through loader → sales → technical (pauses before human_gate)
         file_state = {
             "file_path": file_path,
             "file_index": idx,
-            "human_approved": True,  # Auto-approve to skip manual review
+            "human_approved": False,  # Will pause at human_gate
             "is_valid_rfp": True,
-            "messages": []
         }
         
-        # Run workflow (will go through sales → technical, then pause before pricing)
+        # Run workflow - will execute: loader → sales → technical → [PAUSE before human_gate]
         async for _ in graph.astream(file_state, config=config):
             pass
         
-        # Get final state after technical agent
+        # Get final state after technical agent completes
         snapshot = graph.get_state(config)
         final_state = snapshot.values
         
-        # Extract review data
+        # Extract review data including win_probability from technical agent
         review_result = {
             "file_index": idx,
             "file_path": file_path,
@@ -473,8 +475,9 @@ async def process_all_rfps(req: UploadTriggerRequest):
         all_reviews.append(review_result)
         print(f"✅ File {idx + 1} processed. Win probability: {review_result['win_probability']}%")
     
-    # Store all reviews in state for later selection
-    graph.update_state(config, {
+    # Store all reviews in main thread state for later selection
+    main_config = {"configurable": {"thread_id": req.thread_id}}
+    graph.update_state(main_config, {
         "batch_progress": {
             "all_reviews": all_reviews,
             "total_files": len(req.file_paths),
@@ -500,42 +503,35 @@ async def process_all_rfps(req: UploadTriggerRequest):
 async def select_file_for_pricing(thread_id: str, file_index: int = 0):
     """
     User has selected a file from the reviews.
-    Now run pricing agent ONLY for this selected file.
+    Resume from paused state and run pricing agent ONLY.
     """
-    config = {"configurable": {"thread_id": thread_id}}
+    # Use the file-specific thread ID that was used during /process-all
+    file_thread_id = f"{thread_id}_file_{file_index}"
+    config = {"configurable": {"thread_id": file_thread_id}}
     
-    # Get batch progress to find the selected file
+    # Get the paused state for this specific file
     snapshot = graph.get_state(config)
     current_state = snapshot.values
     
-    batch_progress = current_state.get("batch_progress", {})
-    all_reviews = batch_progress.get("all_reviews", [])
-    
-    if file_index >= len(all_reviews):
-        raise HTTPException(status_code=400, detail=f"Invalid file_index: {file_index}")
-    
-    selected_review = all_reviews[file_index]
-    file_path = selected_review["file_path"]
+    file_path = current_state.get("file_path", "")
+    win_probability = current_state.get("win_probability", 0.0)
     
     print(f"\n💰 User selected file {file_index + 1}: {os.path.basename(file_path)}")
-    print(f"   Win probability: {selected_review['win_probability']}%")
-    print(f"   Running pricing agent...")
+    print(f"   Win probability: {win_probability}%")
+    print(f"   Resuming workflow to pricing agent...")
     
-    # Update state to process pricing for this specific file
-    graph.update_state(config, {
-        "file_path": file_path,
-        "file_index": file_index,
-        "human_approved": True,  # Approval already given by selection
-        "technical_review": selected_review["technical_review"],
-        "products_matched": selected_review["products_matched"],
-        "win_probability": selected_review["win_probability"]
-    })
+    # Update state to approve and continue past human_gate
+    graph.update_state(config, {"human_approved": True})
     
-    # Continue workflow to pricing agent
-    async for _ in graph.astream(None, config=config):
-        pass
+    # Resume workflow from paused state - this continues to pricing and bid nodes
+    try:
+        async for _ in graph.astream(None, config=config):
+            pass
+    except Exception as e:
+        print(f"❌ Error resuming workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Workflow error: {str(e)}")
     
-    # Get pricing results
+    # Get final pricing results
     final_snapshot = graph.get_state(config)
     final_state = final_snapshot.values
     
@@ -543,10 +539,11 @@ async def select_file_for_pricing(thread_id: str, file_index: int = 0):
         "file_index": file_index,
         "file_path": file_path,
         "file_name": os.path.basename(file_path),
-        "win_probability": selected_review["win_probability"],
+        "win_probability": win_probability,
         "products_matched": final_state.get("products_matched", []),
         "pricing_detailed": final_state.get("pricing_detailed"),
-        "total_cost": final_state.get("total_cost", 0.0)
+        "total_cost": final_state.get("total_cost", 0.0),
+        "final_bid": final_state.get("final_bid")  # Include final bid data
     }
     
     print(f"✅ Pricing complete! Total cost: ₹{pricing_result['total_cost']:,.2f}")

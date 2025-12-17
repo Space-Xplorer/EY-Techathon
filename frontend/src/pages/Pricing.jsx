@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRfpStore } from "../store/rfpStore";
 import { getWorkflowState } from "../api/rfpApi";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +9,7 @@ export default function Pricing() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [pricingData, setPricingData] = useState(null);
+  const hasCalledApi = useRef(false);
 
   useEffect(() => {
     const triggerPricing = async () => {
@@ -16,6 +17,10 @@ export default function Pricing() {
         navigate('/file-selection');
         return;
       }
+
+      // Prevent double API calls
+      if (hasCalledApi.current) return;
+      hasCalledApi.current = true;
 
       try {
         setIsLoading(true);
@@ -30,6 +35,13 @@ export default function Pricing() {
         
         const result = await response.json();
         setPricingData(result.pricing);
+        
+        // Store the complete result including final_bid in global state
+        setState(prevState => ({
+          ...prevState,
+          ...result.pricing
+        }));
+        
         setIsLoading(false);
       } catch (error) {
         console.error('Error getting pricing:', error);

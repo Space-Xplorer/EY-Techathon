@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { getWorkflowState } from "../api/rfpApi";
+import { getWorkflowState, approveRfp } from "../api/rfpApi";
 import { useRfpStore } from "../store/rfpStore";
 import { useNavigate } from "react-router-dom";
-import { Eye, Loader2, TrendingUp } from "lucide-react";
+import { Eye, Loader2, TrendingUp, CheckCircle2, XCircle } from "lucide-react";
 
 export default function Review() {
   const { threadId, state, setState } = useRfpStore();
@@ -21,7 +21,7 @@ export default function Review() {
       }
     }, 2000);
 
-    return () => clearInterval(pollRef.current);
+    return () => clearInterval(poll);
   }, [threadId, setState]);
 
   // Hide loading overlay when review PDF loads
@@ -37,8 +37,8 @@ export default function Review() {
         <Loader2 className="animate-spin text-cyan-400 mx-auto" size={32} />
         <p className="text-slate-300 mt-4">Loading review data...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
   const handleApproval = async (approved) => {
     setApproving(true);
@@ -112,7 +112,7 @@ export default function Review() {
             <div className="card overflow-hidden h-96 lg:h-150 flex items-center justify-center bg-slate-800">
               {state.review_pdf_path ? (
                 <iframe
-                  src={`http://localhost:8000${rfp.review_pdf_path}`}
+                  src={`http://localhost:8000${state.review_pdf_path}`}
                   className="w-full h-full"
                 />
               ) : (
@@ -152,7 +152,20 @@ export default function Review() {
               </p>
             </div>
           </div>
-        ))}
+
+          {/* Right Sidebar - Technical Details */}
+          <div className="space-y-6">
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="text-cyan-400" size={20} />
+                <h3 className="font-semibold">Technical Analysis</h3>
+              </div>
+              <p className="text-slate-400 text-sm">
+                {state.technical_review || 'Technical review pending...'}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
